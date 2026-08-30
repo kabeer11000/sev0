@@ -6,6 +6,7 @@ export const checkoutScenario: Scenario = {
   title: 'Double-charge under retry, plus a shared-state amount bug in orders-api',
   displayTitle: 'Customers billed the wrong amount — some more than once',
   severity: 'SEV0',
+  difficulty: 'medium',
   timeLimitMs: 60 * 60 * 1000,
   domain: 'checkout',
   incidentReport: [
@@ -91,6 +92,54 @@ async function handle(msg, ctx) {
 }`,
     },
   ],
+  hints: [
+    "Two separate complaints came in — duplicate charges, and a smaller cluster of wrong amounts. Don't assume they share one root cause; look for two separate bugs.",
+    'orders-api/handler.ts keeps `pendingTotal` in a variable declared outside `handle`. The gateway runs orders-api at ×3 — what happens when two checkout requests are being handled at the same instant?',
+    "worker/consume.ts calls `ctx.http.post('payments.charge', ...)` without an idempotency key. If a charge succeeds but the response is lost to the payment-gateway latency spike, the queue redelivers the message — what does the provider do with a repeated charge request that carries no key to recognize it by?",
+  ],
+  solution: {
+    explanation:
+      "Two independent bugs. (1) orders-api/handler.ts stores the request's total in a module-level `pendingTotal` variable instead of a per-request local — with ×3 concurrent instances, one request's total can leak into another's `db.create` call before its own write happens, corrupting the stored amount. Fix: keep `pendingTotal` a local variable computed from `req.total` at call time, never shared across invocations. (2) worker/consume.ts's charge call has no `idempotencyKey` — when the payment-gateway latency spike causes the queue's visibility timeout to redeliver a message whose charge already succeeded, the retry charges again for real. Fix: pass `{ idempotencyKey: msg.orderId }` so the provider recognizes and dedupes the retry.",
+    files: [
+      {
+        path: 'orders-api/handler.ts',
+        code: `/**
+ * @param {{ orderId: string, total: number }} req
+ * @param {ApiCtx} ctx
+ */
+async function handle(req, ctx) {
+  await ctx.http.post('risk.check', { orderId: req.orderId })
+  await ctx.db.create(req.orderId, req.total)
+  ctx.queue.publish(req.orderId)
+}`,
+      },
+      {
+        path: 'worker/consume.ts',
+        code: `/**
+ * @param {{ orderId: string }} msg
+ * @param {Ctx} ctx
+ */
+async function handle(msg, ctx) {
+  const order = await ctx.db.query(msg.orderId)
+  if (!order || order.status === 'settled') {
+    ctx.queue.ack()
+    return
+  }
+
+  const result = await ctx.http.post('payments.charge', {
+    orderId: msg.orderId,
+    amt: order.total,
+  }, { idempotencyKey: msg.orderId })
+
+  if (result.charged) {
+    await ctx.db.exec(msg.orderId, { status: 'settled' }, { ifStatus: 'pending' })
+  }
+
+  ctx.queue.ack()
+}`,
+      },
+    ],
+  },
   params: {
     durationMs: 120_000,
     drainMs: 90_000,

@@ -175,45 +175,59 @@ function IotSdkReferencePanel() {
       <SectionHeader>Runtime SDK</SectionHeader>
 
       <Entry
-        sig="ctx.db.insertReading(reading)"
+        sig="ctx.db.insertPacket(packet)"
         usedIn="dataentry-lambda"
-        blurb="Appends one raw reading row. Never fails, never dedups — every invocation is a new row."
-        example={`await ctx.db.insertReading(reading)`}
+        blurb="Appends one raw packet row. Never fails, never dedups — every invocation is a new row."
+        example={`await ctx.db.insertPacket(packet)`}
       />
 
       <Entry
-        sig="ctx.db.writeDeviceStatus(deviceId, status, ts, opts?)"
+        sig="ctx.db.writeLineStatus(lineId, up, ts, opts?)"
         usedIn="dataentry-lambda"
-        blurb="Sets the device's current status. Readings can arrive out of order — with ifNewerThan, a write is dropped (updated: false) if the stored status already has a newer ts than this one."
+        blurb="Sets the line's current run status, derived from ss1/ss2. Packets can arrive out of order — with ifNewerThan, a write is dropped (updated: false) if the stored status already has a newer ts (pts) than this one."
         options={[
           { name: 'opts.ifNewerThan', desc: "only apply the write if `ts` is newer than the row's current ts — otherwise a safe no-op" },
         ]}
-        example={`const { updated } = await ctx.db.writeDeviceStatus(\n  reading.deviceId,\n  reading.status,\n  reading.ts,\n  { ifNewerThan: true },\n)`}
+        example={`const up = packet.ss1 === 1 && packet.ss2 === 0\nconst { updated } = await ctx.db.writeLineStatus(\n  packet.lineId,\n  up,\n  packet.pts,\n  { ifNewerThan: true },\n)`}
       />
 
       <Entry
-        sig="ctx.db.getCursor()"
-        usedIn="stats-generator"
-        blurb="Returns the ts of the last reading already folded into stats."
-        example={`const cursor = await ctx.db.getCursor()`}
+        sig="ctx.lines()"
+        usedIn="shift-aggregator"
+        blurb="Every line id across every tenant — including lines that only ever receive fan-out copies."
+        example={`for (const lineId of ctx.lines()) { /* ... */ }`}
       />
 
       <Entry
-        sig="ctx.db.readingsSince(cursorTs)"
-        usedIn="stats-generator"
-        blurb="Returns every reading with ts strictly greater than cursorTs."
-        example={`const readings = await ctx.db.readingsSince(cursor)`}
+        sig="ctx.shiftFor(lineId, ts)"
+        usedIn="shift-aggregator"
+        blurb="Which shift ts falls into for that line's tenant. Shifts recur daily and each tenant (plant) has its own schedule, so the same ts can map to a different shift on a different line."
+        example={`const shiftId = ctx.shiftFor(lineId, packet.pts)`}
       />
 
       <Entry
-        sig="ctx.db.commitStats(delta, opts)"
-        usedIn="stats-generator"
-        blurb="Adds delta to the running totals and advances the cursor to opts.newCursor. Nothing stops two cron ticks from overlapping — with ifCursor, the commit is skipped (committed: false) if the cursor has already moved since you read it, instead of double-applying delta."
+        sig="ctx.db.getCursor(lineId) / ctx.db.packetsSince(lineId, cursorPts)"
+        usedIn="shift-aggregator"
+        blurb="The usual cursor pattern: getCursor returns the pts you last processed for that line, packetsSince returns every packet after it, oldest first."
+        example={`const cursor = await ctx.db.getCursor(lineId)\nconst packets = await ctx.db.packetsSince(lineId, cursor)`}
+      />
+
+      <Entry
+        sig="ctx.db.getLastCounters(lineId)"
+        usedIn="shift-aggregator"
+        blurb="The sr1/sr2 values from the last packet you folded in for that line, or undefined if none yet. sr1 (good) and sr2 (reject) are cumulative counters read straight off the device — they only reset when the device itself reboots, dropping back near 0 mid-stream. A plain `packet.sr1 - last.sr1` goes negative right after that; detect current < last and count from 0 instead."
+        example={`const last = await ctx.db.getLastCounters(lineId)\nconst goodDelta = last && p.sr1 >= last.sr1 ? p.sr1 - last.sr1 : p.sr1`}
+      />
+
+      <Entry
+        sig="ctx.db.commitShiftCounts(lineId, shiftId, delta, opts)"
+        usedIn="shift-aggregator"
+        blurb="Adds delta.good/delta.reject to shiftId's running totals, and advances the line's cursor and last-seen counters to opts.newCursor/opts.lastCounters."
         options={[
-          { name: 'opts.newCursor', desc: 'the cursor value to advance to on a successful commit' },
-          { name: 'opts.ifCursor', desc: 'only commit if the stored cursor still equals this — otherwise a safe no-op, and the next tick will naturally re-read the same range' },
+          { name: 'opts.newCursor', desc: 'pts to advance this line’s cursor to' },
+          { name: 'opts.lastCounters', desc: 'sr1/sr2 to remember as this line’s last-seen counters' },
         ]}
-        example={`const { committed } = await ctx.db.commitStats(\n  { upCount, downCount, total: readings.length },\n  { newCursor, ifCursor: cursor },\n)`}
+        example={`await ctx.db.commitShiftCounts(\n  lineId,\n  shiftId,\n  { good: goodDelta, reject: rejectDelta },\n  { newCursor: p.pts, lastCounters: { sr1: p.sr1, sr2: p.sr2 } },\n)`}
       />
 
       <Entry

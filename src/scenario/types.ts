@@ -46,6 +46,13 @@ export interface IotParams {
   disconnectWindow: { lineId: string; startMs: number; endMs: number }
 }
 
+export interface ScenarioSolution {
+  /** what was actually wrong and why the fix works — shown alongside the code */
+  explanation: string
+  /** the corrected content for each editable file, in the same order as editableFiles */
+  files: { path: string; code: string }[]
+}
+
 export interface Scenario {
   id: string
   caseId: string
@@ -54,6 +61,8 @@ export interface Scenario {
   /** symptom-based, written before anyone knew the cause — shown up front */
   displayTitle: string
   severity: 'SEV0' | 'SEV1' | 'SEV2'
+  /** roughly how hard this is to diagnose and fix — shown on the incident card */
+  difficulty: 'tutorial' | 'easy' | 'medium' | 'hard'
   /** real wall-clock time budget for resolving this incident, ms */
   timeLimitMs: number
   incidentReport: string[]
@@ -61,6 +70,10 @@ export interface Scenario {
   domain: 'checkout' | 'iot'
   topology: { nodes: TopologyNode[]; edges: [string, string][] }
   editableFiles: { path: string; starter: string }[]
+  /** progressive nudges, least to most specific — shown one at a time on request */
+  hints: string[]
+  /** the full answer, gated behind an explicit "I'm stuck" confirmation in the UI */
+  solution: ScenarioSolution
   params: {
     durationMs: number
     drainMs: number

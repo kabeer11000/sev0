@@ -1,9 +1,11 @@
 import { useSev0Store } from '../store'
+import { DIFFICULTY_LABEL, DIFFICULTY_COLOR } from './difficulty'
 
 export function IncidentPanel() {
   const scenario = useSev0Store((s) => s.scenario)
   const openFile = useSev0Store((s) => s.openFile)
   const openDocs = useSev0Store((s) => s.openDocs)
+  const openHints = useSev0Store((s) => s.openHints)
   const editablePaths = scenario.editableFiles.map((f) => `services/${f.path}`)
 
   return (
@@ -14,6 +16,12 @@ export function IncidentPanel() {
           style={{ background: 'var(--accent-dim)', color: 'var(--accent)' }}
         >
           {scenario.severity}
+        </span>
+        <span
+          className="rounded px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-wide"
+          style={{ background: 'var(--surface)', border: `1px solid ${DIFFICULTY_COLOR[scenario.difficulty]}`, color: DIFFICULTY_COLOR[scenario.difficulty] }}
+        >
+          {DIFFICULTY_LABEL[scenario.difficulty]}
         </span>
         <span className="font-mono text-[11px]" style={{ color: 'var(--fg-faint)' }}>
           {scenario.caseId}
@@ -57,6 +65,13 @@ export function IncidentPanel() {
         </p>
         <p>
           Right-click any node in the topology to open its file, drop into a terminal, or jump to its config.
+        </p>
+        <p>
+          Stuck?{' '}
+          <button onClick={() => openHints()} className="hover:underline" style={{ color: 'var(--accent)' }}>
+            Hints
+          </button>{' '}
+          has progressive nudges and, if you want it, the full solution.
         </p>
       </div>
     </div>

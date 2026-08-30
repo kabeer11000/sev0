@@ -10,6 +10,7 @@ import { TopologyLegend } from './ui/TopologyLegend'
 import { FileTree } from './ui/FileTree'
 import { IncidentPanel } from './ui/IncidentPanel'
 import { SdkReferencePanel } from './ui/SdkReferencePanel'
+import { HintsPanel } from './ui/HintsPanel'
 import { FileViewer } from './ui/FileViewer'
 import { VerdictPanel } from './ui/VerdictPanel'
 import { Timeline } from './ui/Timeline'
@@ -70,11 +71,12 @@ function CenterTabBar() {
   const labelFor = (id: string) => {
     if (id === 'incident') return 'Incident'
     if (id === 'docs') return 'Docs'
+    if (id === 'hints') return 'Hints'
     const path = id.slice('file:'.length)
     return path.split('/').pop() ?? path
   }
   const isDirty = (id: string) => {
-    if (id === 'incident' || id === 'docs') return false
+    if (id === 'incident' || id === 'docs' || id === 'hints') return false
     const path = id.slice('file:'.length)
     const f = filesystem.find((x) => x.path === path)
     return !!f?.editable && code[path] !== f.content
@@ -92,7 +94,7 @@ function CenterTabBar() {
             {labelFor(t.id)}
             {isDirty(t.id) && <span className="h-1.5 w-1.5 rounded-full" style={{ background: 'var(--accent)' }} />}
           </button>
-          {t.id !== 'incident' && t.id !== 'docs' && (
+          {t.id !== 'incident' && t.id !== 'docs' && t.id !== 'hints' && (
             <button
               onClick={() => closeTab(t.id)}
               className="rounded p-0.5 opacity-0 group-hover:opacity-100"
@@ -221,6 +223,8 @@ function IncidentApp({ scenario }: { scenario: Scenario }) {
                     <IncidentPanel />
                   ) : activeCenterTabId === 'docs' ? (
                     <SdkReferencePanel />
+                  ) : activeCenterTabId === 'hints' ? (
+                    <HintsPanel />
                   ) : (
                     <FileViewer key={activeCenterTabId} path={activeCenterTabId.slice('file:'.length)} />
                   )}

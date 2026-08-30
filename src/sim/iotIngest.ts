@@ -47,8 +47,8 @@ export function startIotIngest(opts: {
     const isStaleCandidate =
       lineId === statusFlap.lineId &&
       targetPacket.ss1 === 1 &&
-      targetPacket.pts <= statusFlap.downAtMs &&
-      targetPacket.pts > statusFlap.downAtMs - iot.heartbeatIntervalMs
+      targetPacket.pts < statusFlap.downAtMs &&
+      targetPacket.pts >= statusFlap.downAtMs - iot.heartbeatIntervalMs
 
     const baseDelay = rng.latency(iot.ingestJitterMs, 3)
     const delay = isStaleCandidate ? baseDelay + statusFlap.delayedPacketLatencyMs : baseDelay

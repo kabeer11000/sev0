@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { Scenario } from './scenario/types'
-import { checkoutScenario } from './scenario/checkout'
+import { tutorialScenario } from './scenario/tutorial'
 import { getScenarioByCaseId } from './scenario/scenarios'
 import { buildFilesystem, buildIotFilesystem } from './scenario/filesystem'
 import type { FsFile } from './scenario/filesystem'
@@ -18,6 +18,7 @@ function lastEditableVfsPath(scenario: Scenario): string {
 export type CenterTab =
   | { id: 'incident'; kind: 'incident' }
   | { id: 'docs'; kind: 'docs' }
+  | { id: 'hints'; kind: 'hints' }
   | { id: `file:${string}`; kind: 'file'; path: string }
 export type BottomTab = { id: 'feed'; kind: 'feed' } | { id: `terminal:${string}`; kind: 'terminal'; nodeId: string }
 
@@ -60,6 +61,33 @@ function markTutorialSeen() {
 
 function codeStorageKey(scenario: Scenario): string {
   return `sev0_code_${scenario.caseId}`
+}
+
+function helpStorageKey(scenario: Scenario): string {
+  return `sev0_help_${scenario.caseId}`
+}
+
+interface HelpProgress {
+  hintsRevealed: number
+  solutionRevealed: boolean
+}
+
+function loadHelpProgress(scenario: Scenario): HelpProgress {
+  try {
+    const raw = localStorage.getItem(helpStorageKey(scenario))
+    if (!raw) return { hintsRevealed: 0, solutionRevealed: false }
+    return { hintsRevealed: 0, solutionRevealed: false, ...JSON.parse(raw) }
+  } catch {
+    return { hintsRevealed: 0, solutionRevealed: false }
+  }
+}
+
+function saveHelpProgress(scenario: Scenario, progress: HelpProgress) {
+  try {
+    localStorage.setItem(helpStorageKey(scenario), JSON.stringify(progress))
+  } catch {
+    // ignore — private browsing / storage blocked
+  }
 }
 
 function loadSavedCode(scenario: Scenario): Record<string, string> {
@@ -107,7 +135,7 @@ function resolveInitialScenario(): Scenario {
     const s = getScenarioByCaseId(route.caseId)
     if (s) return s
   }
-  return checkoutScenario
+  return tutorialScenario
 }
 
 interface ScenarioLoad {
@@ -115,6 +143,7 @@ interface ScenarioLoad {
   filesystem: FsFile[]
   code: Record<string, string>
   taskStartedAt: number
+  helpProgress: HelpProgress
   toast?: string
 }
 
@@ -132,6 +161,7 @@ function loadScenarioData(scenario: Scenario): ScenarioLoad {
     filesystem,
     code,
     taskStartedAt: loadOrInitTaskStartedAt(scenario),
+    helpProgress: loadHelpProgress(scenario),
     toast: sharedCode ? "Loaded a shared solution — this is someone else's code, not the starter" : undefined,
   }
 }
@@ -147,6 +177,8 @@ interface Sev0State {
   activeBottomTabId: string
   terminals: Record<string, TerminalLine[]> // keyed by nodeId
   taskStartedAt: number
+  hintsRevealed: number
+  solutionRevealed: boolean
 
   isRunning: boolean
   isSubmitting: boolean
@@ -168,6 +200,9 @@ interface Sev0State {
   openFile: (path: string) => void
   openIncident: () => void
   openDocs: () => void
+  openHints: () => void
+  revealNextHint: () => void
+  revealSolution: () => void
   closeCenterTab: (id: string) => void
   setActiveCenterTab: (id: string) => void
   openTerminal: (nodeId: string) => void
@@ -213,12 +248,15 @@ export const useSev0Store = create<Sev0State>((set, get) => ({
   centerTabs: [
     { id: 'incident', kind: 'incident' },
     { id: 'docs', kind: 'docs' },
+    { id: 'hints', kind: 'hints' },
   ],
   activeCenterTabId: initialLoad.toast ? `file:${lastEditableVfsPath(initialLoad.scenario)}` : 'incident',
   bottomTabs: [{ id: 'feed', kind: 'feed' }],
   activeBottomTabId: 'feed',
   terminals: {},
   taskStartedAt: initialLoad.taskStartedAt,
+  hintsRevealed: initialLoad.helpProgress.hintsRevealed,
+  solutionRevealed: initialLoad.helpProgress.solutionRevealed,
 
   isRunning: false,
   isSubmitting: false,
@@ -241,12 +279,15 @@ export const useSev0Store = create<Sev0State>((set, get) => ({
       centerTabs: [
         { id: 'incident', kind: 'incident' },
         { id: 'docs', kind: 'docs' },
+        { id: 'hints', kind: 'hints' },
       ],
       activeCenterTabId: loaded.toast ? `file:${lastEditableVfsPath(loaded.scenario)}` : 'incident',
       bottomTabs: [{ id: 'feed', kind: 'feed' }],
       activeBottomTabId: 'feed',
       terminals: {},
       taskStartedAt: loaded.taskStartedAt,
+      hintsRevealed: loaded.helpProgress.hintsRevealed,
+      solutionRevealed: loaded.helpProgress.solutionRevealed,
       lastRun: undefined,
       submitResult: undefined,
       scrubberT: 0,
@@ -275,10 +316,24 @@ export const useSev0Store = create<Sev0State>((set, get) => ({
 
   openIncident: () => set({ activeCenterTabId: 'incident' }),
   openDocs: () => set({ activeCenterTabId: 'docs' }),
+  openHints: () => set({ activeCenterTabId: 'hints' }),
+
+  revealNextHint: () =>
+    set((s) => {
+      const hintsRevealed = Math.min(s.scenario.hints.length, s.hintsRevealed + 1)
+      saveHelpProgress(s.scenario, { hintsRevealed, solutionRevealed: s.solutionRevealed })
+      return { hintsRevealed }
+    }),
+
+  revealSolution: () =>
+    set((s) => {
+      saveHelpProgress(s.scenario, { hintsRevealed: s.hintsRevealed, solutionRevealed: true })
+      return { solutionRevealed: true }
+    }),
 
   closeCenterTab: (id) =>
     set((s) => {
-      if (id === 'incident' || id === 'docs') return {}
+      if (id === 'incident' || id === 'docs' || id === 'hints') return {}
       const idx = s.centerTabs.findIndex((t) => t.id === id)
       if (idx === -1) return {}
       const nextTabs = s.centerTabs.filter((t) => t.id !== id)

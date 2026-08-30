@@ -1,6 +1,7 @@
 import { SCENARIOS } from '../scenario/scenarios'
 import { navigate } from '../router'
 import { Logo } from './Logo'
+import { DIFFICULTY_LABEL, DIFFICULTY_COLOR } from './difficulty'
 
 const SEVERITY_COLOR: Record<string, string> = {
   SEV0: 'var(--crit)',
@@ -23,6 +24,12 @@ function IncidentCard({ scenario }: { scenario: (typeof SCENARIOS)[number] }) {
           style={{ background: 'var(--accent-dim)', color: SEVERITY_COLOR[scenario.severity] }}
         >
           {scenario.severity}
+        </span>
+        <span
+          className="rounded px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-wide"
+          style={{ background: 'var(--surface)', border: `1px solid ${DIFFICULTY_COLOR[scenario.difficulty]}`, color: DIFFICULTY_COLOR[scenario.difficulty] }}
+        >
+          {DIFFICULTY_LABEL[scenario.difficulty]}
         </span>
         <span className="font-mono text-[11px]" style={{ color: 'var(--fg-faint)' }}>
           {scenario.caseId}

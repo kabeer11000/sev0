@@ -19,6 +19,7 @@ export function CommandPalette() {
   const openFile = useSev0Store((s) => s.openFile)
   const openIncident = useSev0Store((s) => s.openIncident)
   const openDocs = useSev0Store((s) => s.openDocs)
+  const openHints = useSev0Store((s) => s.openHints)
   const openTerminal = useSev0Store((s) => s.openTerminal)
   const runPractice = useSev0Store((s) => s.runPractice)
   const submit = useSev0Store((s) => s.submit)
@@ -34,6 +35,7 @@ export function CommandPalette() {
       { id: 'submit', group: 'Action', label: 'Submit for grading', hint: 'Ctrl+Shift+Enter', run: () => submit() },
       { id: 'incident', group: 'Action', label: 'Open incident report', run: () => openIncident() },
       { id: 'docs', group: 'Action', label: 'Open SDK reference', run: () => openDocs() },
+      { id: 'hints', group: 'Action', label: 'Open hints & solution', run: () => openHints() },
       { id: 'tutorial', group: 'Action', label: 'Show tutorial', run: () => setTutorialOpen(true) },
       { id: 'list', group: 'Incident', label: 'All open incidents', run: () => navigate('/') },
       ...SCENARIOS.filter((s) => s.caseId !== scenario.caseId).map((s) => ({
@@ -56,7 +58,7 @@ export function CommandPalette() {
         run: () => openTerminal(n.id),
       })),
     ],
-    [filesystem, scenario, openFile, openIncident, openDocs, openTerminal, runPractice, submit, setTutorialOpen],
+    [filesystem, scenario, openFile, openIncident, openDocs, openHints, openTerminal, runPractice, submit, setTutorialOpen],
   )
 
   const filtered = useMemo(() => {

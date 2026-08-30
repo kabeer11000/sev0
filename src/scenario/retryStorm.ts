@@ -6,6 +6,7 @@ export const retryStormScenario: Scenario = {
   title: 'An unbounded retry loop turned a 40-minute provider blip into a full checkout outage',
   displayTitle: 'Checkout went fully down during a brief payment-gateway issue',
   severity: 'SEV0',
+  difficulty: 'easy',
   timeLimitMs: 40 * 60 * 1000,
   domain: 'checkout',
   incidentReport: [
@@ -75,6 +76,46 @@ async function handle(msg, ctx) {
 }`,
     },
   ],
+  hints: [
+    'The provider outage lasted 40 minutes. Checkout stayed degraded much longer than that — something is amplifying a short outage, not just riding it out.',
+    "worker/consume.ts retries the charge call up to 20 times in a tight loop before ever calling `ctx.queue.ack()`. During the outage, how long does one message now hold a worker, and what happens to every other message stacked up behind it?",
+    "The queue's `visibilityTimeoutMs` doesn't care that a worker is busy retrying — a message that isn't acked within it gets redelivered to a *different* worker, which starts its own 20-attempt retry loop on the same order. That's what's driving the external-call-budget over.",
+  ],
+  solution: {
+    explanation:
+      "worker/consume.ts hand-rolls a 20-attempt retry loop around the charge call. During the provider's failure window this means one worker can spend most of its visibility timeout retrying a single message — and once that timeout lapses, the queue redelivers the same message to another worker, which starts its own 20-attempt loop, multiplying calls to an already-struggling provider and starving every other queued order behind it. The fix removes the manual retry entirely: attempt the charge once, and if the provider call didn't even complete (`!result.ok`), just return without acking — the queue's own visibility-timeout redelivery is the retry mechanism, and it naturally backs off because a busy worker can only hold one message at a time instead of looping on it.",
+    files: [
+      {
+        path: 'worker/consume.ts',
+        code: `/**
+ * @param {{ orderId: string }} msg
+ * @param {Ctx} ctx
+ */
+async function handle(msg, ctx) {
+  const order = await ctx.db.query(msg.orderId)
+  if (!order || order.status === 'settled') {
+    ctx.queue.ack()
+    return
+  }
+
+  const result = await ctx.http.post('payments.charge', {
+    orderId: msg.orderId,
+    amt: order.total,
+  }, { idempotencyKey: msg.orderId })
+
+  if (!result.ok) {
+    return
+  }
+
+  if (result.charged) {
+    await ctx.db.exec(msg.orderId, { status: 'settled' }, { ifStatus: 'pending' })
+  }
+
+  ctx.queue.ack()
+}`,
+      },
+    ],
+  },
   params: {
     durationMs: 120_000,
     drainMs: 90_000,

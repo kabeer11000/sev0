@@ -15,8 +15,10 @@ const LABELS: Partial<Record<SimEvent['kind'], string>> = {
   'charge.deduped': 'INFO   charge deduped (idempotency key hit)',
   'charge.failed': 'WARN   charge attempt failed',
   'request.failed': 'WARN   checkout request failed',
-  'device.status.stale': 'INFO   stale device-status write rejected by guard',
-  'stats.commit_skipped': 'INFO   stats commit skipped — cursor already advanced',
+  'line.status.stale': 'INFO   stale line-status write rejected by guard',
+  'device.restart': 'ALERT  sensor restart detected — counters reset to 0',
+  'line.disconnected': 'WARN   line stopped sending packets',
+  'line.reconnected': 'INFO   line resumed sending packets',
 }
 
 const SEVERITY: Partial<Record<SimEvent['kind'], 'crit' | 'warn' | 'ok'>> = {
@@ -31,8 +33,10 @@ const SEVERITY: Partial<Record<SimEvent['kind'], 'crit' | 'warn' | 'ok'>> = {
   'fault.failure_rate_end': 'ok',
   'fault.worker_restart': 'ok',
   'charge.deduped': 'ok',
-  'device.status.stale': 'ok',
-  'stats.commit_skipped': 'ok',
+  'line.status.stale': 'ok',
+  'device.restart': 'crit',
+  'line.disconnected': 'warn',
+  'line.reconnected': 'ok',
 }
 
 export function EventFeed() {
@@ -45,7 +49,7 @@ export function EventFeed() {
     const withFlags: Array<SimEvent & { double?: boolean; mismatch?: boolean; outOfOrder?: boolean }> = []
     const seen = new Set<string>()
     const requestedTotal = new Map<string, number>()
-    const lastAcceptedTsByDevice = new Map<string, number>()
+    const lastAcceptedTsByLine = new Map<string, number>()
     for (const e of lastRun.log.all()) {
       if (e.t > scrubberT) break
       if (e.kind === 'request.accepted' && e.orderId && typeof e.detail?.total === 'number') {
@@ -57,10 +61,10 @@ export function EventFeed() {
         mismatch = requested != null && requested !== e.detail.total
       }
       let outOfOrder = false
-      if (e.kind === 'device.status.write' && e.node && typeof e.detail?.ts === 'number') {
-        const last = lastAcceptedTsByDevice.get(e.node)
+      if (e.kind === 'line.status.write' && e.node && typeof e.detail?.ts === 'number') {
+        const last = lastAcceptedTsByLine.get(e.node)
         outOfOrder = last != null && e.detail.ts < last
-        lastAcceptedTsByDevice.set(e.node, Math.max(last ?? -Infinity, e.detail.ts))
+        lastAcceptedTsByLine.set(e.node, Math.max(last ?? -Infinity, e.detail.ts))
       }
       if (!LABELS[e.kind] && !mismatch && !outOfOrder) continue
       let double = false
@@ -91,9 +95,9 @@ export function EventFeed() {
           : e.mismatch
             ? "ALERT  stored amount doesn't match what was requested"
             : e.outOfOrder
-              ? 'ALERT  stale reading overwrote a fresher device status'
+              ? 'ALERT  stale packet overwrote a fresher line status'
               : LABELS[e.kind]
-        const copyId = e.orderId ?? (e.kind.startsWith('device.') || e.kind.startsWith('reading.') ? e.node : undefined)
+        const copyId = e.orderId ?? (e.kind.startsWith('line.') || e.kind.startsWith('packet.') || e.kind === 'device.restart' ? e.node : undefined)
         return (
           <div key={`${e.seq}`} className="flex gap-3 border-b px-4 py-1.5" style={{ borderColor: 'var(--border)' }}>
             <span className="shrink-0 tabular-nums" style={{ color: 'var(--fg-faint)' }}>

@@ -53,6 +53,10 @@ const KIND_GLYPH: Record<string, string> = {
   frontend: '▣',
 }
 
+function truncate(text: string, maxLen: number): string {
+  return text.length > maxLen ? `${text.slice(0, maxLen - 1)}…` : text
+}
+
 function NodeBox({
   id,
   label,
@@ -108,11 +112,13 @@ function NodeBox({
         {pulsing && <animate attributeName="opacity" values="1;0.3;1" dur="1s" repeatCount="indefinite" />}
       </circle>
       <text x={w / 2} y={secondLine ? 25 : h / 2 + 4} textAnchor="middle" fontSize={10.5} fontFamily="var(--font-mono)" fill="var(--fg)" fontWeight={500}>
-        {label}
+        {truncate(label, 17)}
+        {label.length > 17 && <title>{label}</title>}
       </text>
       {captionText && (
         <text x={w / 2} y={38} textAnchor="middle" fontSize={9} fontFamily="var(--font-mono)" fill={captionColor}>
-          {captionText}
+          {truncate(captionText, 19)}
+          {captionText.length > 19 && <title>{captionText}</title>}
         </text>
       )}
     </g>

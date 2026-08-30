@@ -20,10 +20,11 @@ export function evaluateIotInvariants(log: EventLog, iot: IotParams): OracleRepo
   const outOfOrderLines = new Set<string>()
   let staleRejections = 0
 
-  // reference (correct) reset-aware replay, computed independently by the
-  // oracle, per line — this is what actually catches the counter-reset bug
-  const refLastCounters = new Map<string, { sr1: number; sr2: number }>()
-  const refTotals = new Map<string, { good: number; reject: number }>()
+  // ingested packets, per line, in ARRIVAL order (log order) — reordered by
+  // pts below before the reset-aware replay, since a deliberately-delayed
+  // packet can be ingested after a later one and must not be mistaken for a
+  // device reset just because it arrived out of order
+  const ingestedByLine = new Map<string, { pts: number; sr1: number; sr2: number }[]>()
 
   // what the guest's shift-aggregator actually committed
   const actualTotals = new Map<string, { good: number; reject: number }>()
@@ -41,18 +42,11 @@ export function evaluateIotInvariants(log: EventLog, iot: IotParams): OracleRepo
         const lineId = e.node!
         const pts = (e.detail?.pts as number) ?? e.t
         actualIngested.add(`${lineId}:${pts}`)
-
         const sr1 = e.detail?.sr1 as number
         const sr2 = e.detail?.sr2 as number
-        const last = refLastCounters.get(lineId)
-        const shiftId = shiftIdFor(iot, lineId, pts)
-        const totals = refTotals.get(shiftId) ?? { good: 0, reject: 0 }
-        if (last) {
-          totals.good += sr1 < last.sr1 ? sr1 : sr1 - last.sr1
-          totals.reject += sr2 < last.sr2 ? sr2 : sr2 - last.sr2
-        }
-        refTotals.set(shiftId, totals)
-        refLastCounters.set(lineId, { sr1, sr2 })
+        const list = ingestedByLine.get(lineId) ?? []
+        list.push({ pts, sr1, sr2 })
+        ingestedByLine.set(lineId, list)
         break
       }
       case 'line.status.write': {
@@ -75,6 +69,25 @@ export function evaluateIotInvariants(log: EventLog, iot: IotParams): OracleRepo
         actualTotals.set(shiftId, totals)
         break
       }
+    }
+  }
+
+  // reference (correct) reset-aware replay, computed independently by the
+  // oracle in pts order per line — this is what actually catches the
+  // counter-reset bug
+  const refTotals = new Map<string, { good: number; reject: number }>()
+  for (const [lineId, packets] of ingestedByLine) {
+    packets.sort((a, b) => a.pts - b.pts)
+    let last: { sr1: number; sr2: number } | undefined
+    for (const p of packets) {
+      const shiftId = shiftIdFor(iot, lineId, p.pts)
+      const totals = refTotals.get(shiftId) ?? { good: 0, reject: 0 }
+      if (last) {
+        totals.good += p.sr1 < last.sr1 ? p.sr1 : p.sr1 - last.sr1
+        totals.reject += p.sr2 < last.sr2 ? p.sr2 : p.sr2 - last.sr2
+      }
+      refTotals.set(shiftId, totals)
+      last = { sr1: p.sr1, sr2: p.sr2 }
     }
   }
 
