@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { fromNodeHeaders } from 'better-auth/node'
-import { auth } from './_lib/auth'
-import { pool } from './_lib/db'
+import { auth } from './_lib/auth.js'
+import { pool } from './_lib/db.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) })
