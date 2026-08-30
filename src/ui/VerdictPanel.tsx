@@ -1,5 +1,8 @@
 import { Fragment } from 'react'
 import { useSev0Store } from '../store'
+import { navigate } from '../router'
+import { SCENARIOS } from '../scenario/scenarios'
+import { isScenarioSolved, rankFor } from '../progress'
 
 function Chip({ ok }: { ok: boolean }) {
   return (
@@ -106,14 +109,29 @@ export function VerdictPanel() {
             ))}
           </div>
           {submitResult.passed && (
-            <div className="mt-3 rounded-md border p-3" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
-              <div className="mb-1 font-mono text-[9.5px] uppercase tracking-wider" style={{ color: 'var(--fg-faint)' }}>
-                Root cause
+            <>
+              <div className="mt-3 rounded-md border p-3" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+                <div className="mb-1 font-mono text-[9.5px] uppercase tracking-wider" style={{ color: 'var(--fg-faint)' }}>
+                  Root cause
+                </div>
+                <div className="text-[12.5px]" style={{ color: 'var(--fg)' }}>
+                  {scenario.title}
+                </div>
               </div>
-              <div className="text-[12.5px]" style={{ color: 'var(--fg)' }}>
-                {scenario.title}
+              <div className="mt-3 flex items-center justify-between">
+                <span className="font-mono text-[10.5px]" style={{ color: 'var(--fg-faint)' }}>
+                  {(() => {
+                    const solvedCount = SCENARIOS.filter(isScenarioSolved).length
+                    return solvedCount >= SCENARIOS.length
+                      ? `Rank: ${rankFor(solvedCount, SCENARIOS.length)} — every open incident is resolved`
+                      : `Rank: ${rankFor(solvedCount, SCENARIOS.length)} (${solvedCount}/${SCENARIOS.length} resolved)`
+                  })()}
+                </span>
+                <button onClick={() => navigate('/')} className="font-mono text-[11px] hover:underline" style={{ color: 'var(--accent)' }}>
+                  ← open incidents
+                </button>
               </div>
-            </div>
+            </>
           )}
         </Section>
       )}

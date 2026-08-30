@@ -10,6 +10,7 @@ import { runIotScenario, submitIotScenario } from './iotRunner'
 import type { IotRunResult, IotSubmitResult } from './iotRunner'
 import { readSharedSolutionFromHash, clearShareHash } from './ui/shareUtils'
 import { parseRoute } from './router'
+import { isScenarioSolved, markScenarioSolved } from './progress'
 
 function lastEditableVfsPath(scenario: Scenario): string {
   return `services/${scenario.editableFiles[scenario.editableFiles.length - 1].path}`
@@ -179,6 +180,7 @@ interface Sev0State {
   taskStartedAt: number
   hintsRevealed: number
   solutionRevealed: boolean
+  solved: boolean
 
   isRunning: boolean
   isSubmitting: boolean
@@ -257,6 +259,7 @@ export const useSev0Store = create<Sev0State>((set, get) => ({
   taskStartedAt: initialLoad.taskStartedAt,
   hintsRevealed: initialLoad.helpProgress.hintsRevealed,
   solutionRevealed: initialLoad.helpProgress.solutionRevealed,
+  solved: isScenarioSolved(initialLoad.scenario),
 
   isRunning: false,
   isSubmitting: false,
@@ -288,6 +291,7 @@ export const useSev0Store = create<Sev0State>((set, get) => ({
       taskStartedAt: loaded.taskStartedAt,
       hintsRevealed: loaded.helpProgress.hintsRevealed,
       solutionRevealed: loaded.helpProgress.solutionRevealed,
+      solved: isScenarioSolved(loaded.scenario),
       lastRun: undefined,
       submitResult: undefined,
       scrubberT: 0,
@@ -414,7 +418,8 @@ export const useSev0Store = create<Sev0State>((set, get) => ({
     try {
       const result =
         s.scenario.domain === 'iot' ? await submitIotScenario(s.scenario, iotCode(s)) : await submitScenario(s.scenario, checkoutCode(s))
-      set({ submitResult: result })
+      if (result.passed) markScenarioSolved(s.scenario)
+      set({ submitResult: result, solved: s.solved || result.passed })
     } finally {
       set({ isSubmitting: false })
     }

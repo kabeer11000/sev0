@@ -3,6 +3,7 @@ import { DIFFICULTY_LABEL, DIFFICULTY_COLOR } from './difficulty'
 
 export function IncidentPanel() {
   const scenario = useSev0Store((s) => s.scenario)
+  const solved = useSev0Store((s) => s.solved)
   const openFile = useSev0Store((s) => s.openFile)
   const openDocs = useSev0Store((s) => s.openDocs)
   const openHints = useSev0Store((s) => s.openHints)
@@ -23,6 +24,14 @@ export function IncidentPanel() {
         >
           {DIFFICULTY_LABEL[scenario.difficulty]}
         </span>
+        {solved && (
+          <span
+            className="rounded px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-wide"
+            style={{ background: 'var(--ok-bg)', color: 'var(--ok)' }}
+          >
+            resolved
+          </span>
+        )}
         <span className="font-mono text-[11px]" style={{ color: 'var(--fg-faint)' }}>
           {scenario.caseId}
         </span>
