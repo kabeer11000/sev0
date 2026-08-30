@@ -1,30 +1,68 @@
 import { Fragment } from 'react'
 import { useSev0Store } from '../store'
 import { navigate } from '../router'
-import { SCENARIOS } from '../scenario/scenarios'
-import { isScenarioSolved, rankFor } from '../progress'
+import { ResolutionCelebration } from './ResolutionCelebration'
 
 function Chip({ ok }: { ok: boolean }) {
   return (
     <span
-      className="inline-flex shrink-0 items-center rounded px-1.5 py-0.5 font-mono text-[10px] font-medium uppercase tracking-wide"
+      className="inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold"
       style={{
         background: ok ? 'var(--ok-bg)' : 'var(--crit-bg)',
         color: ok ? 'var(--ok)' : 'var(--crit)',
       }}
     >
-      {ok ? 'pass' : 'fail'}
+      <span
+        className="inline-block h-1.5 w-1.5 rounded-full"
+        style={{ background: ok ? 'var(--ok)' : 'var(--crit)' }}
+      />
+      {ok ? 'Pass' : 'Fail'}
     </span>
   )
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <div className="border-b" style={{ borderColor: 'var(--border)' }}>
-      <div className="px-4 pt-3 pb-2 font-mono text-[10px] uppercase tracking-wider" style={{ color: 'var(--fg-faint)' }}>
-        {title}
+    <div
+      className="mb-2 text-[10.5px] font-bold uppercase"
+      style={{ color: 'var(--fg-faint)', letterSpacing: '0.10em' }}
+    >
+      {children}
+    </div>
+  )
+}
+
+function Section({
+  title,
+  children,
+  tone,
+}: {
+  title: string
+  children: React.ReactNode
+  tone?: 'crit' | 'ok' | 'neutral'
+}) {
+  const accent =
+    tone === 'ok' ? 'var(--ok)' :
+    tone === 'crit' ? 'var(--crit)' :
+    'var(--fg-muted)'
+  return (
+    <div
+      className="mx-5 mb-3 rounded-2xl border p-4"
+      style={{
+        borderColor: tone === 'ok' ? 'var(--ok-bg)' : tone === 'crit' ? 'var(--crit-bg)' : 'var(--border)',
+        background: tone === 'ok' ? 'rgba(220, 234, 223, 0.4)' : tone === 'crit' ? 'rgba(246, 218, 214, 0.4)' : 'var(--bg-elevated)',
+      }}
+    >
+      <div className="mb-3 flex items-center gap-2">
+        <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: accent }} />
+        <span
+          className="text-[10.5px] font-bold uppercase"
+          style={{ color: accent, letterSpacing: '0.10em' }}
+        >
+          {title}
+        </span>
       </div>
-      <div className="px-4 pb-3">{children}</div>
+      {children}
     </div>
   )
 }
@@ -33,19 +71,42 @@ export function VerdictPanel() {
   const lastRun = useSev0Store((s) => s.lastRun)
   const submitResult = useSev0Store((s) => s.submitResult)
   const scenario = useSev0Store((s) => s.scenario)
+  const lastResolution = useSev0Store((s) => s.lastResolution)
 
   return (
-    <div className="flex h-full flex-col overflow-y-auto">
+    <div id="verdict-panel-root" className="flex h-full flex-col overflow-y-auto py-3">
+      {lastResolution && (
+        <div className="px-5 pb-3">
+          <ResolutionCelebration resolution={lastResolution} />
+        </div>
+      )}
+
       {!lastRun && (
-        <div className="px-4 py-6 text-xs leading-relaxed" style={{ color: 'var(--fg-faint)' }}>
-          Run the practice seed to see invariant results here. Submitting grades your fix against{' '}
-          {scenario.hiddenSeeds.length} hidden seeds you haven&rsquo;t seen.
+        <div
+          className="mx-5 rounded-2xl border p-5"
+          style={{
+            borderColor: 'var(--border)',
+            background: 'linear-gradient(135deg, var(--bg-elevated) 0%, var(--surface) 100%)',
+          }}
+        >
+          <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full" style={{ background: 'var(--accent-dim)' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-strong)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <polygon points="6 4 20 12 6 20 6 4" />
+            </svg>
+          </div>
+          <div className="mb-1 text-[13.5px] font-semibold" style={{ color: 'var(--fg)' }}>
+            No run yet
+          </div>
+          <p className="text-[12.5px] leading-relaxed" style={{ color: 'var(--fg-muted)' }}>
+            Hit <span className="rounded-md px-1.5 py-0.5 font-mono text-[11px] font-semibold" style={{ background: 'var(--accent-dim)', color: 'var(--accent-strong)' }}>Run</span> to replay the incident on a seed you can see. Submitting grades your fix against{' '}
+            {scenario.hiddenSeeds.length} hidden seeds you haven&rsquo;t seen.
+          </p>
         </div>
       )}
 
       {lastRun?.error && (
-        <Section title="Compile error">
-          <pre className="whitespace-pre-wrap font-mono text-[11px]" style={{ color: 'var(--crit)' }}>
+        <Section title="Compile error" tone="crit">
+          <pre className="whitespace-pre-wrap font-mono text-[11.5px]" style={{ color: 'var(--crit)' }}>
             {lastRun.error}
           </pre>
         </Section>
@@ -53,17 +114,17 @@ export function VerdictPanel() {
 
       {lastRun && !lastRun.error && (
         <>
-          <Section title={`Invariants — practice seed ${lastRun.seed}`}>
-            <div className="flex flex-col gap-2.5">
+          <Section title={`Invariants · practice seed ${lastRun.seed}`}>
+            <div className="flex flex-col gap-3">
               {lastRun.oracle.results.map((r) => (
-                <div key={r.key} className="flex flex-col gap-0.5">
+                <div key={r.key} className="flex flex-col gap-1">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-[12px]" style={{ color: 'var(--fg)' }}>
+                    <span className="text-[13px] font-medium" style={{ color: 'var(--fg)' }}>
                       {r.title}
                     </span>
                     <Chip ok={r.passed} />
                   </div>
-                  <span className="font-mono text-[10.5px]" style={{ color: 'var(--fg-muted)' }}>
+                  <span className="font-mono text-[11.5px]" style={{ color: 'var(--fg-muted)' }}>
                     {r.detail}
                   </span>
                 </div>
@@ -71,8 +132,8 @@ export function VerdictPanel() {
             </div>
           </Section>
 
-          <Section title="Metrics (informational)">
-            <div className="grid grid-cols-2 gap-y-2 font-mono text-[11px] tabular-nums">
+          <Section title="Metrics · informational">
+            <div className="grid grid-cols-2 gap-y-2.5 font-mono text-[12px] tabular-nums">
               {lastRun.oracle.metrics.map((m) => (
                 <Fragment key={m.key}>
                   <span style={{ color: 'var(--fg-faint)' }}>{m.label}</span>
@@ -87,22 +148,22 @@ export function VerdictPanel() {
       )}
 
       {submitResult && (
-        <Section title="Submission — hidden seeds">
-          <div className="mb-3 flex items-center gap-2">
+        <Section title="Submission · hidden seeds" tone={submitResult.passed ? 'ok' : 'crit'}>
+          <div className="mb-4">
             <span
-              className="rounded px-2 py-1 font-mono text-[11px] font-semibold"
+              className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-[13px] font-bold"
               style={{
-                background: submitResult.passed ? 'var(--ok-bg)' : 'var(--crit-bg)',
-                color: submitResult.passed ? 'var(--ok)' : 'var(--crit)',
+                background: submitResult.passed ? 'var(--ok)' : 'var(--crit)',
+                color: '#fff',
               }}
             >
+              <span className="inline-block h-2 w-2 rounded-full bg-white" />
               {Math.round(submitResult.passRate * 100)}% pass rate
             </span>
-            {submitResult.passed && <span className="text-[11px]" style={{ color: 'var(--fg-muted)' }}>Incident resolved.</span>}
           </div>
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-2">
             {submitResult.runs.map((r) => (
-              <div key={r.seed} className="flex items-center justify-between font-mono text-[10.5px]">
+              <div key={r.seed} className="flex items-center justify-between rounded-lg px-2 py-1 font-mono text-[12px]" style={{ background: r.error || !r.oracle.passed ? 'var(--crit-bg)' : 'var(--ok-bg)' }}>
                 <span style={{ color: 'var(--fg-muted)' }}>seed {r.seed}</span>
                 <Chip ok={!r.error && r.oracle.passed} />
               </div>
@@ -110,25 +171,22 @@ export function VerdictPanel() {
           </div>
           {submitResult.passed && (
             <>
-              <div className="mt-3 rounded-md border p-3" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
-                <div className="mb-1 font-mono text-[9.5px] uppercase tracking-wider" style={{ color: 'var(--fg-faint)' }}>
-                  Root cause
-                </div>
-                <div className="text-[12.5px]" style={{ color: 'var(--fg)' }}>
+              <div className="mt-4 rounded-xl border p-3" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+                <SectionTitle>Root cause</SectionTitle>
+                <div className="text-[13px]" style={{ color: 'var(--fg)' }}>
                   {scenario.title}
                 </div>
               </div>
-              <div className="mt-3 flex items-center justify-between">
-                <span className="font-mono text-[10.5px]" style={{ color: 'var(--fg-faint)' }}>
-                  {(() => {
-                    const solvedCount = SCENARIOS.filter(isScenarioSolved).length
-                    return solvedCount >= SCENARIOS.length
-                      ? `Rank: ${rankFor(solvedCount, SCENARIOS.length)} — every open incident is resolved`
-                      : `Rank: ${rankFor(solvedCount, SCENARIOS.length)} (${solvedCount}/${SCENARIOS.length} resolved)`
-                  })()}
+              <div className="mt-4 flex items-center justify-between rounded-full px-4 py-2" style={{ background: 'var(--surface)' }}>
+                <span className="text-[12.5px]" style={{ color: 'var(--fg-muted)' }}>
+                  Want to do another?
                 </span>
-                <button onClick={() => navigate('/')} className="font-mono text-[11px] hover:underline" style={{ color: 'var(--accent)' }}>
-                  ← open incidents
+                <button
+                  onClick={() => navigate('/')}
+                  className="text-[12.5px] font-semibold hover:underline"
+                  style={{ color: 'var(--accent-strong)' }}
+                >
+                  ← back to the queue
                 </button>
               </div>
             </>

@@ -13,9 +13,12 @@ function Code({ children }: { children: string }) {
 
 function SectionHeader({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="mb-1 mt-9 text-[13px] font-semibold uppercase tracking-wide" style={{ color: 'var(--fg-faint)' }}>
-      {children}
-    </h2>
+    <div className="mb-3 mt-10 flex items-center gap-2">
+      <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: 'var(--accent)' }} />
+      <h2 className="text-[11px] font-bold uppercase" style={{ color: 'var(--accent-strong)', letterSpacing: '0.10em' }}>
+        {children}
+      </h2>
+    </div>
   )
 }
 
@@ -34,13 +37,16 @@ function Entry({
 }) {
   return (
     <div className="border-b py-5" style={{ borderColor: 'var(--border)' }}>
-      <div className="mb-1.5 flex items-center gap-2">
-        <code className="font-mono text-[13px] font-semibold" style={{ color: 'var(--accent)' }}>
+      <div className="mb-2 flex items-center gap-2">
+        <code
+          className="rounded-md px-2 py-0.5 font-mono text-[12.5px] font-semibold"
+          style={{ color: 'var(--accent-strong)', background: 'var(--accent-dim)' }}
+        >
           {sig}
         </code>
         <span
-          className="rounded px-1.5 py-0.5 font-mono text-[9.5px] uppercase tracking-wide"
-          style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--fg-faint)' }}
+          className="rounded-full px-2 py-0.5 font-mono text-[9.5px] font-semibold uppercase"
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--fg-muted)', letterSpacing: '0.06em' }}
         >
           {usedIn}
         </span>

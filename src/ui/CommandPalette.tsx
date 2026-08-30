@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSev0Store } from '../store'
 import { SCENARIOS } from '../scenario/scenarios'
 import { navigate } from '../router'
+import { Chip } from './Chip'
 
 interface Command {
   id: string
@@ -24,6 +25,7 @@ export function CommandPalette() {
   const runPractice = useSev0Store((s) => s.runPractice)
   const submit = useSev0Store((s) => s.submit)
   const setTutorialOpen = useSev0Store((s) => s.setTutorialOpen)
+  const restartIncident = useSev0Store((s) => s.restartIncident)
 
   const [query, setQuery] = useState('')
   const [sel, setSel] = useState(0)
@@ -37,6 +39,7 @@ export function CommandPalette() {
       { id: 'docs', group: 'Action', label: 'Open SDK reference', run: () => openDocs() },
       { id: 'hints', group: 'Action', label: 'Open hints & solution', run: () => openHints() },
       { id: 'tutorial', group: 'Action', label: 'Show tutorial', run: () => setTutorialOpen(true) },
+      { id: 'restart', group: 'Action', label: 'Restart this incident', hint: 'clears code & timer', run: () => restartIncident() },
       { id: 'list', group: 'Incident', label: 'All open incidents', run: () => navigate('/') },
       ...SCENARIOS.filter((s) => s.caseId !== scenario.caseId).map((s) => ({
         id: `incident:${s.caseId}`,
@@ -58,7 +61,7 @@ export function CommandPalette() {
         run: () => openTerminal(n.id),
       })),
     ],
-    [filesystem, scenario, openFile, openIncident, openDocs, openHints, openTerminal, runPractice, submit, setTutorialOpen],
+    [filesystem, scenario, openFile, openIncident, openDocs, openHints, openTerminal, runPractice, submit, setTutorialOpen, restartIncident],
   )
 
   const filtered = useMemo(() => {
@@ -87,37 +90,48 @@ export function CommandPalette() {
   return (
     <div
       className="fixed inset-0 z-[90] flex items-start justify-center px-4 pt-[14vh]"
-      style={{ background: 'rgba(0,0,0,0.55)' }}
+      style={{ background: 'rgba(43, 36, 28, 0.30)' }}
       onClick={() => setOpen(false)}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="flex w-full max-w-[480px] flex-col overflow-hidden rounded-lg"
-        style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-strong)', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}
+        className="flex w-full max-w-[520px] flex-col overflow-hidden rounded-3xl"
+        style={{
+          background: 'var(--bg-elevated)',
+          border: '1px solid var(--border)',
+          boxShadow: 'var(--shadow-modal)',
+        }}
       >
-        <input
-          ref={inputRef}
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'ArrowDown') {
-              setSel((s) => Math.min(s + 1, filtered.length - 1))
-              e.preventDefault()
-            }
-            if (e.key === 'ArrowUp') {
-              setSel((s) => Math.max(s - 1, 0))
-              e.preventDefault()
-            }
-            if (e.key === 'Enter' && filtered[sel]) exec(filtered[sel])
-            if (e.key === 'Escape') setOpen(false)
-          }}
-          placeholder="Jump to a file, or run a command…"
-          className="border-b px-4 py-3 font-mono text-[13px] outline-none"
-          style={{ borderColor: 'var(--border)', background: 'transparent', color: 'var(--fg)' }}
-        />
-        <div className="max-h-[360px] overflow-y-auto py-1.5">
+        <div className="flex items-center gap-2.5 border-b px-5 py-3.5" style={{ borderColor: 'var(--border)' }}>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden style={{ color: 'var(--fg-faint)' }}>
+            <circle cx="7" cy="7" r="4.5" stroke="currentColor" strokeWidth="1.6" />
+            <path d="M10.5 10.5 L14 14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+          </svg>
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'ArrowDown') {
+                setSel((s) => Math.min(s + 1, filtered.length - 1))
+                e.preventDefault()
+              }
+              if (e.key === 'ArrowUp') {
+                setSel((s) => Math.max(s - 1, 0))
+                e.preventDefault()
+              }
+              if (e.key === 'Enter' && filtered[sel]) exec(filtered[sel])
+              if (e.key === 'Escape') setOpen(false)
+            }}
+            placeholder="Jump to a file, or run a command…"
+            className="flex-1 text-[14px] outline-none"
+            style={{ background: 'transparent', color: 'var(--fg)' }}
+          />
+          <span className="rounded-full px-1.5 font-mono text-[10px]" style={{ background: 'var(--surface)', color: 'var(--fg-faint)', border: '1px solid var(--border)' }}>esc</span>
+        </div>
+        <div className="max-h-[380px] overflow-y-auto p-2">
           {filtered.length === 0 && (
-            <div className="px-4 py-3 font-mono text-[12px]" style={{ color: 'var(--fg-faint)' }}>
+            <div className="px-3 py-3 text-[13px]" style={{ color: 'var(--fg-faint)' }}>
               no matches
             </div>
           )}
@@ -126,20 +140,25 @@ export function CommandPalette() {
               key={c.id}
               onClick={() => exec(c)}
               onMouseEnter={() => setSel(i)}
-              className="flex w-full items-center justify-between px-4 py-1.5 text-left font-mono text-[12px]"
-              style={{ background: i === sel ? 'var(--surface-hover)' : 'transparent', color: 'var(--fg)' }}
+              className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-[13px] transition-colors"
+              style={{
+                background: i === sel ? 'var(--accent-dim)' : 'transparent',
+                color: i === sel ? 'var(--accent-strong)' : 'var(--fg)',
+              }}
             >
               <span className="flex items-center gap-2 truncate">
-                <span
-                  className="shrink-0 rounded px-1 py-0.5 text-[9px] uppercase tracking-wide"
-                  style={{ background: 'var(--surface)', color: 'var(--fg-faint)', border: '1px solid var(--border)' }}
-                >
-                  {c.group}
-                </span>
+                <Chip size="sm" tone={i === sel ? 'accent' : 'neutral'}>{c.group}</Chip>
                 <span className="truncate">{c.label}</span>
               </span>
               {c.hint && (
-                <span className="ml-3 shrink-0 text-[10px]" style={{ color: 'var(--fg-faint)' }}>
+                <span
+                  className="ml-3 shrink-0 rounded-md px-1.5 py-0.5 font-mono text-[10.5px] font-semibold"
+                  style={{
+                    background: i === sel ? 'var(--accent)' : 'var(--surface)',
+                    color: i === sel ? '#fff' : 'var(--fg-faint)',
+                    border: i === sel ? 'none' : '1px solid var(--border)',
+                  }}
+                >
                   {c.hint}
                 </span>
               )}

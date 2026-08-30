@@ -81,42 +81,52 @@ function NodeBox({
   const [x, y] = POS[id]
   const w = 118
   const secondLine = sub ?? fileCaption ?? note
-  const h = secondLine ? 54 : 42
+  const h = secondLine ? 56 : 44
   const stroke = STATUS_COLOR[status]
   const pulsing = status !== 'ok'
   const captionColor = sub ? 'var(--fg-muted)' : fileCaption ? 'var(--accent)' : 'var(--fg-faint)'
   const captionText = sub ?? (fileCaption ? `→ ${fileCaption}` : note)
+  const [hover, setHover] = useState(false)
   return (
     <g
       transform={`translate(${x - w / 2}, ${y - h / 2})`}
       onContextMenu={(e) => onContextMenu(e, id)}
       onPointerDown={(e) => e.stopPropagation()}
-      style={{ cursor: 'context-menu' }}
+      onPointerEnter={() => setHover(true)}
+      onPointerLeave={() => setHover(false)}
+      style={{ cursor: 'context-menu', transition: 'transform 180ms ease' }}
     >
       <rect
         width={w}
         height={h}
-        rx={7}
-        fill={status === 'ok' ? 'var(--surface)' : status === 'degraded' ? 'var(--warn-bg)' : 'var(--crit-bg)'}
+        rx={10}
+        fill={status === 'ok' ? 'var(--bg-elevated)' : status === 'degraded' ? 'var(--warn-bg)' : 'var(--crit-bg)'}
         stroke={stroke}
-        strokeWidth={status === 'ok' ? 1 : 1.6}
-        strokeDasharray={sealed ? '3 2' : undefined}
+        strokeWidth={hover ? 2.2 : status === 'ok' ? 1 : 1.8}
+        strokeDasharray={sealed ? '4 3' : undefined}
         opacity={sealed ? 0.78 : 1}
+        style={{ filter: hover ? 'drop-shadow(0 4px 12px rgba(43, 36, 28, 0.12))' : 'none', transition: 'filter 180ms ease' }}
       >
-        {pulsing && <animate attributeName="opacity" values="1;0.55;1" dur="1.4s" repeatCount="indefinite" />}
+        {pulsing && <animate attributeName="opacity" values="1;0.6;1" dur="1.4s" repeatCount="indefinite" />}
       </rect>
       <text x={11} y={15} fontSize={9} fill="var(--fg-faint)" opacity={0.8}>
         {KIND_GLYPH[kind] ?? '○'}
       </text>
-      <circle cx={w - 10} cy={10} r={3.5} fill={status === 'ok' ? 'var(--fg-faint)' : status === 'degraded' ? 'var(--warn)' : 'var(--crit)'}>
+      <circle cx={w - 11} cy={11} r={4} fill={status === 'ok' ? 'var(--fg-faint)' : status === 'degraded' ? 'var(--warn)' : 'var(--crit)'}>
         {pulsing && <animate attributeName="opacity" values="1;0.3;1" dur="1s" repeatCount="indefinite" />}
       </circle>
-      <text x={w / 2} y={secondLine ? 25 : h / 2 + 4} textAnchor="middle" fontSize={10.5} fontFamily="var(--font-mono)" fill="var(--fg)" fontWeight={500}>
+      {sealed && (
+        <g transform={`translate(${w / 2 - 6}, ${h - 14})`}>
+          <rect width={12} height={9} rx={2} fill="rgba(255,255,255,0.7)" stroke="var(--fg-faint)" strokeWidth={0.5} />
+          <rect x={3} y={2} width={6} height={5} rx={0.6} fill="none" stroke="var(--fg-faint)" strokeWidth={0.6} />
+        </g>
+      )}
+      <text x={w / 2} y={secondLine ? 27 : h / 2 + 4} textAnchor="middle" fontSize={10.5} fontFamily="var(--font-mono)" fill="var(--fg)" fontWeight={500}>
         {truncate(label, 17)}
         {label.length > 17 && <title>{label}</title>}
       </text>
       {captionText && (
-        <text x={w / 2} y={38} textAnchor="middle" fontSize={9} fontFamily="var(--font-mono)" fill={captionColor}>
+        <text x={w / 2} y={42} textAnchor="middle" fontSize={9} fontFamily="var(--font-mono)" fill={captionColor}>
           {truncate(captionText, 19)}
           {captionText.length > 19 && <title>{captionText}</title>}
         </text>
@@ -140,8 +150,12 @@ function ZoomButton({ onClick, label, children }: { onClick: () => void; label: 
       onClick={onClick}
       aria-label={label}
       title={label}
-      className="flex h-6 w-6 items-center justify-center rounded font-mono text-[13px] leading-none"
-      style={{ background: 'var(--surface)', border: '1px solid var(--border-strong)', color: 'var(--fg-muted)' }}
+      className="flex h-7 w-7 items-center justify-center rounded-full font-mono text-[13px] leading-none transition-all duration-150 hover:-translate-y-px"
+      style={{
+ background: 'var(--bg-elevated)',
+ color: 'var(--fg-muted)',
+ border: '1px solid var(--border)',
+      }}
     >
       {children}
     </button>
@@ -301,15 +315,18 @@ export function TopologyGraph({ scenario, log, t }: { scenario: Scenario; log?: 
       </svg>
 
       <div className="pointer-events-none absolute bottom-2 right-2 flex items-center gap-1">
-        <div className="pointer-events-auto flex items-center gap-0.5 rounded-md p-0.5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div
+          className="pointer-events-auto flex items-center gap-1 rounded-full p-1 shadow-sm"
+          style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
+        >
           <ZoomButton label="Zoom out" onClick={() => zoomAt(1.25)}>
             −
           </ZoomButton>
           <button
             onClick={resetView}
             title="Reset view"
-            className="px-1.5 font-mono text-[10px] tabular-nums"
-            style={{ color: 'var(--fg-faint)', minWidth: 34 }}
+            className="flex h-7 items-center justify-center rounded-full px-2.5 font-mono text-[10.5px] font-semibold tabular-nums transition-colors hover:bg-[var(--surface-hover)]"
+            style={{ color: 'var(--fg-muted)', minWidth: 42 }}
           >
             {zoomPct}%
           </button>

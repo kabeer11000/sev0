@@ -1,7 +1,7 @@
 // Deterministic initials avatar — no upload, no third-party lookup. Same
 // name always produces the same color, so a returning player's avatar
 // stays visually consistent everywhere without any stored image.
-const PALETTE = ['#ff5c33', '#45b36b', '#f5a623', '#5c9aff', '#c85cff', '#ff5c8a', '#2fd0c9']
+const PALETTE = ['#e26d44', '#3d8a5a', '#c98715', '#5b9aff', '#9d6dff', '#d96a8a', '#2fa99d']
 
 function hashString(s: string): number {
   let h = 0

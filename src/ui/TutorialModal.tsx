@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { Chip } from './Chip'
+import { TutorialClipboardIllustration } from './TutorialClipboardIllustration'
 
 interface Step {
   title: string
@@ -10,17 +12,17 @@ const STEPS: Step[] = [
   {
     tag: 'Concept',
     title: "You're not solving a puzzle — you're on call",
-    body: "Sev0 hands you a running system with something broken in it, right now. There's no failing test pointing at a line number. Your job is the same as a real incident: read the signals, form a hypothesis, find the defect, patch it, and prove the fix actually holds.",
+    body: "Sev0 hands you a running system with something broken in it, right now. There's no failing test pointing at a line number. Your job is the same as a real incident: read the signals, form a hypothesis, find the defect, patch it, and prove the fix holds on seeds you've never seen.",
   },
   {
-    tag: 'Incident tab',
+    tag: 'The brief',
     title: 'Start with what actually happened',
     body: "The Incident tab is your ticket — symptoms, timing, what support is seeing. It won't tell you which file or line is wrong. That's the part you have to figure out from the system's behavior.",
   },
   {
     tag: 'Topology panel',
     title: 'The system, live, on the left',
-    body: 'Dashed-border nodes are sealed — real, but read-only, exactly like a managed queue or someone else\'s service in production. Solid nodes are yours to edit. Colors track health in real time as you scrub through a run: gray is healthy, amber is degraded, red is down.',
+    body: "Dashed-border nodes are read-only — managed services or someone else's code. Solid borders are yours to edit. Colors track health in real time as you scrub through a run: gray is healthy, amber is degraded, red is down.",
   },
   {
     tag: 'Files panel',
@@ -38,7 +40,7 @@ const STEPS: Step[] = [
     body: "Open a terminal on a worker, the queue, the database, or an external dependency and run real commands — ps, status, depth, select * from orders. Output reflects the exact moment you're scrubbed to, not just the end state — scrub backward and rerun a command to see what it looked like earlier.",
   },
   {
-    tag: 'Terminal, cont.',
+    tag: 'Command tip',
     title: 'Every log command takes an order id',
     body: "logs ord-42, peek ord-42, select * from orders where id='ord-42' — every terminal that has a logs/peek/select command accepts an order id and filters down to just that order's own trail across queue, db, and gateway events. Once the feed flags an order, grab its id and pull the same thread from every node it touched.",
   },
@@ -60,7 +62,7 @@ const STEPS: Step[] = [
   {
     tag: 'Verdict panel',
     title: 'Some numbers are gates, some are just context',
-    body: "The verdict panel grades your practice run against the invariants that actually matter — like never charging an order twice. Metrics like settlement latency are shown for context but don't gate you: the slow payment gateway is a sealed dependency you can't patch.",
+    body: "The verdict panel grades your practice run against the invariants that actually matter — like never charging an order twice. Latency and other metrics show you what's happening on the wire but don't gate you — some things are out of your hands.",
   },
   {
     tag: 'Submit',
@@ -77,49 +79,54 @@ export function TutorialModal({ onClose }: { onClose: () => void }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center px-4"
-      style={{ background: 'rgba(0,0,0,0.6)' }}
+      style={{ background: 'rgba(43, 36, 28, 0.40)' }}
       onClick={onClose}
     >
       <div
         role="dialog"
         aria-modal="true"
         onClick={(e) => e.stopPropagation()}
-        className="flex w-full max-w-[440px] flex-col rounded-lg"
-        style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-strong)', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}
+        className="flex w-full max-w-[460px] flex-col rounded-3xl"
+        style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-modal)' }}
       >
-        <div className="flex items-center justify-between px-5 pt-5">
-          <span
-            className="rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold tracking-wide"
-            style={{ background: 'var(--accent-dim)', color: 'var(--accent)' }}
-          >
-            {step.tag}
-          </span>
+        <div className="flex items-center justify-between px-6 pt-6">
+          <Chip tone="accent">{step.tag}</Chip>
           <button
             onClick={onClose}
             aria-label="Close tutorial"
-            className="font-mono text-[11px]"
+            className="text-[12px]"
             style={{ color: 'var(--fg-faint)' }}
           >
             skip
           </button>
         </div>
 
-        <div className="px-5 pb-2 pt-4">
-          <h2 className="mb-2.5 text-[16.5px] font-semibold" style={{ letterSpacing: '-0.01em' }}>
+        {i === 0 && (
+          <div className="flex justify-center px-6 pt-5">
+            <TutorialClipboardIllustration />
+          </div>
+        )}
+
+        <div className="px-6 pb-2 pt-5">
+          <h2 className="mb-3 text-[17px] font-semibold" style={{ letterSpacing: '-0.01em' }}>
             {step.title}
           </h2>
-          <p className="text-[13px] leading-relaxed" style={{ color: 'var(--fg-muted)' }}>
+          <p className="text-[13.5px] leading-relaxed" style={{ color: 'var(--fg-muted)' }}>
             {step.body}
           </p>
         </div>
 
-        <div className="flex items-center justify-between px-5 pb-5 pt-4">
-          <div className="flex gap-1.5">
+        <div className="flex items-center justify-between px-6 pb-6 pt-5">
+          <div className="flex items-center gap-1.5">
             {STEPS.map((_, idx) => (
               <span
                 key={idx}
-                className="h-1.5 w-1.5 rounded-full"
-                style={{ background: idx === i ? 'var(--accent)' : 'var(--border-strong)' }}
+                className="rounded-full transition-all duration-300"
+                style={{
+                  width: idx === i ? 14 : 5,
+                  height: 5,
+                  background: idx === i ? 'var(--accent)' : idx < i ? 'var(--accent-dim)' : 'var(--border-strong)',
+                }}
               />
             ))}
           </div>
@@ -127,18 +134,21 @@ export function TutorialModal({ onClose }: { onClose: () => void }) {
             {i > 0 && (
               <button
                 onClick={() => setI(i - 1)}
-                className="h-7 rounded px-3 font-mono text-[11.5px]"
-                style={{ border: '1px solid var(--border-strong)', color: 'var(--fg-muted)' }}
+                className="h-8 rounded-full px-4 text-[13px] font-medium transition-all duration-200 hover:-translate-y-px"
+                style={{ border: '1px solid var(--border)', color: 'var(--fg-muted)', background: 'var(--surface)' }}
               >
-                back
+                Back
               </button>
             )}
             <button
               onClick={() => (last ? onClose() : setI(i + 1))}
-              className="h-7 rounded px-3 font-mono text-[11.5px] font-semibold text-black"
-              style={{ background: '#fff' }}
+              className="h-8 rounded-full px-4 text-[13px] font-bold text-white transition-all duration-200 hover:-translate-y-px hover:shadow-md"
+              style={{
+                background: 'linear-gradient(180deg, #f37c5a 0%, var(--accent) 60%, var(--accent-strong) 100%)',
+                boxShadow: '0 2px 8px rgba(238, 90, 54, 0.28)',
+              }}
             >
-              {last ? "let's go" : 'next'}
+              {last ? "Let's go" : 'Next →'}
             </button>
           </div>
         </div>

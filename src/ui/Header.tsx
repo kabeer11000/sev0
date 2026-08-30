@@ -1,20 +1,14 @@
+import { useEffect, useState } from 'react'
 import { useSev0Store } from '../store'
 import { buildShareUrl, formatResultSummary, downloadTextFile } from './shareUtils'
 import { navigate } from '../router'
 import { Logo } from './Logo'
 import { ElapsedTimer } from './ElapsedTimer'
 import { AccountMenu } from './AccountMenu'
-
-function Kbd({ children }: { children: React.ReactNode }) {
-  return (
-    <span
-      className="rounded px-1 py-[1px] font-mono text-[9.5px]"
-      style={{ background: 'rgba(255,255,255,0.08)', color: 'inherit', opacity: 0.7 }}
-    >
-      {children}
-    </span>
-  )
-}
+import { HeaderProgress } from './HeaderProgress'
+import { XpPotentialPill } from './XpPotentialPill'
+import { PracticeStats } from './PracticeStats'
+import { getPracticeRunCount } from '../practiceStats'
 
 function Spinner() {
   return (
@@ -25,16 +19,73 @@ function Spinner() {
   )
 }
 
+function RestartIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path
+        d="M2.5 8 A 5.5 5.5 0 1 1 8 13.5"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        fill="none"
+      />
+      <path d="M5.5 1.5 L 2.5 1.5 L 2.5 4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </svg>
+  )
+}
+
+function RestartButton() {
+  const restartIncident = useSev0Store((s) => s.restartIncident)
+  const [confirming, setConfirming] = useState(false)
+
+  useEffect(() => {
+    if (!confirming) return
+    const id = setTimeout(() => setConfirming(false), 3000)
+    return () => clearTimeout(id)
+  }, [confirming])
+
+  return (
+    <button
+      onClick={() => {
+        if (confirming) {
+          restartIncident()
+          setConfirming(false)
+        } else {
+          setConfirming(true)
+        }
+      }}
+      title="Restart this incident — clears your code, hints, and timer"
+      className="flex h-8 items-center gap-1.5 rounded-full px-3 text-[12.5px] font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-sm"
+      style={{
+        border: '1px solid var(--border)',
+        color: confirming ? 'var(--crit)' : 'var(--fg-muted)',
+        background: confirming ? 'var(--crit-bg)' : 'var(--surface)',
+      }}
+    >
+      <RestartIcon />
+      {confirming ? 'Confirm restart?' : 'Restart'}
+    </button>
+  )
+}
+
 export function Header() {
   const scenario = useSev0Store((s) => s.scenario)
   const isRunning = useSev0Store((s) => s.isRunning)
   const isSubmitting = useSev0Store((s) => s.isSubmitting)
   const runPractice = useSev0Store((s) => s.runPractice)
   const submit = useSev0Store((s) => s.submit)
-  const setTutorialOpen = useSev0Store((s) => s.setTutorialOpen)
   const setCommandPaletteOpen = useSev0Store((s) => s.setCommandPaletteOpen)
   const openContextMenu = useSev0Store((s) => s.openContextMenu)
   const showToast = useSev0Store((s) => s.showToast)
+  const editorTheme = useSev0Store((s) => s.editorTheme)
+  const setEditorTheme = useSev0Store((s) => s.setEditorTheme)
+
+  const [runCount, setRunCount] = useState(() => getPracticeRunCount(scenario))
+  useEffect(() => {
+    setRunCount(getPracticeRunCount(scenario))
+    const id = setInterval(() => setRunCount(getPracticeRunCount(scenario)), 1500)
+    return () => clearInterval(id)
+  }, [scenario])
 
   const openShareMenu = (e: React.MouseEvent) => {
     const rect = e.currentTarget.getBoundingClientRect()
@@ -78,70 +129,124 @@ export function Header() {
 
   return (
     <header
-      className="flex h-11 shrink-0 items-center justify-between border-b px-3.5"
+      className="flex h-12 shrink-0 items-center justify-between border-b px-4"
       style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated)' }}
     >
       <div className="flex items-center gap-2.5">
-        <button onClick={() => navigate('/')} title="Back to open incidents" className="flex items-center gap-2.5">
+        <button
+          onClick={() => navigate('/')}
+          title="Back to open incidents"
+          className="group flex items-center gap-2 rounded-full transition-all duration-200 hover:-translate-y-px"
+        >
           <Logo size="sm" />
-          <span className="h-3.5 w-px" style={{ background: 'var(--border-strong)' }} />
-          <span className="font-mono text-[11px]" style={{ color: 'var(--fg-faint)' }}>
+          <span
+            className="rounded-full px-2 py-0.5 font-mono text-[10.5px] font-semibold tracking-wide transition-colors group-hover:bg-[var(--surface-hover)]"
+            style={{ background: 'var(--surface)', color: 'var(--fg-muted)' }}
+          >
             {scenario.caseId}
           </span>
         </button>
-        <span className="h-3.5 w-px" style={{ background: 'var(--border-strong)' }} />
         <ElapsedTimer />
+        <HeaderProgress />
       </div>
 
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-2">
         <button
           onClick={() => setCommandPaletteOpen(true)}
-          className="flex h-6 items-center gap-2 rounded px-2 font-mono text-[10.5px]"
-          style={{ border: '1px solid var(--border-strong)', color: 'var(--fg-faint)', background: 'var(--surface)' }}
+          aria-label="Search files and commands"
+          title="Search files & commands (⌘K)"
+          className="flex h-8 w-8 items-center justify-center rounded-full transition-all duration-200 hover:-translate-y-px hover:shadow-sm"
+          style={{ border: '1px solid var(--border)', color: 'var(--fg-muted)', background: 'var(--surface)' }}
         >
-          <span>search files &amp; commands</span>
-          <Kbd>⌘K</Kbd>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
+            <circle cx="7" cy="7" r="4.5" stroke="currentColor" strokeWidth="1.6" />
+            <path d="M10.5 10.5 L14 14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+          </svg>
+        </button>
+        <button
+          onClick={() => setEditorTheme(editorTheme === 'light' ? 'dark' : 'light')}
+          aria-label={editorTheme === 'light' ? 'Switch editor to dark theme' : 'Switch editor to light theme'}
+          title={editorTheme === 'light' ? 'Dark editor' : 'Light editor'}
+          className="flex h-8 w-8 items-center justify-center rounded-full transition-all duration-200 hover:-translate-y-px hover:shadow-sm"
+          style={{
+            border: '1px solid var(--border)',
+            color: 'var(--fg-muted)',
+            background: editorTheme === 'light' ? 'var(--accent-dim)' : 'var(--surface)',
+          }}
+        >
+          {editorTheme === 'light' ? (
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
+              <path d="M11.5 9.5 A 5.5 5.5 0 0 1 6.5 4.5 A 5.5 5.5 0 1 0 11.5 9.5 Z" fill="currentColor" />
+            </svg>
+          ) : (
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
+              <circle cx="8" cy="8" r="3" fill="currentColor" />
+              <g stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+                <path d="M8 1.5 V 3.2" />
+                <path d="M8 12.8 V 14.5" />
+                <path d="M1.5 8 H 3.2" />
+                <path d="M12.8 8 H 14.5" />
+                <path d="M3.4 3.4 L 4.6 4.6" />
+                <path d="M11.4 11.4 L 12.6 12.6" />
+                <path d="M3.4 12.6 L 4.6 11.4" />
+                <path d="M11.4 4.6 L 12.6 3.4" />
+              </g>
+            </svg>
+          )}
         </button>
         <button
           onClick={openShareMenu}
-          className="flex h-6 items-center gap-1.5 rounded px-2 font-mono text-[10.5px]"
-          style={{ border: '1px solid var(--border-strong)', color: 'var(--fg-muted)', background: 'var(--surface)' }}
+          className="flex h-8 items-center gap-1.5 rounded-full px-3 text-[12.5px] font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-sm"
+          style={{ border: '1px solid var(--border)', color: 'var(--fg-muted)', background: 'var(--surface)' }}
         >
           Share
         </button>
-        <button
-          onClick={() => setTutorialOpen(true)}
-          aria-label="How this works"
-          title="How this works"
-          className="flex h-6 w-6 items-center justify-center rounded font-mono text-[11px] font-medium"
-          style={{ border: '1px solid var(--border-strong)', color: 'var(--fg-muted)', background: 'var(--surface)' }}
-        >
-          ?
-        </button>
-        <span className="mx-0.5 h-3.5 w-px" style={{ background: 'var(--border-strong)' }} />
-        <button
-          onClick={() => runPractice()}
-          disabled={isRunning || isSubmitting}
-          title="Replay the incident on a seed you can see — instant, free, watch it happen in the timeline below"
-          className="flex h-6 items-center gap-1.5 rounded px-2.5 font-mono text-[10.5px] font-medium transition-colors disabled:opacity-50"
-          style={{ border: '1px solid var(--border-strong)', color: 'var(--fg)', background: 'var(--surface)' }}
-        >
-          {isRunning && <Spinner />}
-          {isRunning ? 'Replaying…' : 'Run practice seed'}
-          {!isRunning && <Kbd>⌘⏎</Kbd>}
-        </button>
+        <PracticeStats />
+        <RestartButton />
+        <div className="relative">
+          <button
+            onClick={() => runPractice()}
+            disabled={isRunning || isSubmitting}
+            title="Replay the incident on a seed you can see — instant, free, watch it happen in the timeline below (⌘⏎)"
+            className="flex h-8 items-center gap-1.5 rounded-full px-4 text-[12.5px] font-semibold transition-all duration-200 hover:-translate-y-px hover:shadow-md active:translate-y-0 disabled:opacity-50 disabled:hover:translate-y-0"
+            style={{
+              background: 'linear-gradient(180deg, #f7c8b3 0%, var(--accent-dim) 100%)',
+              color: 'var(--accent-strong)',
+              border: '1px solid #f1b097',
+            }}
+          >
+            {isRunning && <Spinner />}
+            {isRunning ? 'Running…' : 'Run'}
+          </button>
+          {runCount > 0 && !isRunning && (
+            <span
+              aria-label={`${runCount} practice runs so far`}
+              className="pop-in pointer-events-none absolute -right-1.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 font-mono text-[10px] font-bold tabular-nums"
+              style={{
+                background: 'var(--accent-strong)',
+                color: '#fff',
+                border: '2px solid var(--bg-elevated)',
+                boxShadow: '0 2px 6px rgba(196, 85, 47, 0.32)',
+              }}
+            >
+              {runCount}
+            </span>
+          )}
+        </div>
+        <XpPotentialPill />
         <button
           onClick={() => submit()}
           disabled={isRunning || isSubmitting}
-          title="Grade your fix against 5 seeds you've never seen — this is what checks whether it actually works"
-          className="flex h-6 items-center gap-1.5 rounded px-2.5 font-mono text-[10.5px] font-semibold text-black transition-colors disabled:opacity-50"
-          style={{ background: '#fff' }}
+          title="Grade your fix against 5 seeds you've never seen — this is what checks whether it actually works (⇧⌘⏎)"
+          className="pulse-ring flex h-8 items-center gap-1.5 rounded-full px-4 text-[12.5px] font-bold text-white transition-all duration-200 hover:-translate-y-px hover:shadow-lg active:translate-y-0 disabled:opacity-50 disabled:hover:translate-y-0"
+          style={{
+            background: 'linear-gradient(180deg, #f37c5a 0%, var(--accent) 60%, var(--accent-strong) 100%)',
+            boxShadow: '0 4px 14px rgba(238, 90, 54, 0.30)',
+          }}
         >
           {isSubmitting && <Spinner />}
           {isSubmitting ? 'Grading…' : 'Submit'}
-          {!isSubmitting && <Kbd>⇧⌘⏎</Kbd>}
         </button>
-        <span className="mx-0.5 h-3.5 w-px" style={{ background: 'var(--border-strong)' }} />
         <AccountMenu />
       </div>
     </header>

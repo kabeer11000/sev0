@@ -10,7 +10,21 @@ import { runIotScenario, submitIotScenario } from './iotRunner'
 import type { IotRunResult, IotSubmitResult } from './iotRunner'
 import { readSharedSolutionFromHash, clearShareHash } from './ui/shareUtils'
 import { parseRoute } from './router'
-import { isScenarioSolved, markScenarioSolved } from './progress'
+import { isScenarioSolved, saveSolve, addBadges, loadProgress } from './progress'
+import { computeXp } from './xp'
+import { evaluateEarned, BADGE_BY_ID } from './badges'
+import type { BadgeId } from './badges'
+import { recordSolveOnDay } from './streak'
+import { levelFor } from './levels'
+import { checkQuestCompletion } from './quests'
+import { recordPracticeRun } from './practiceStats'
+
+function fmtDuration(ms: number): string {
+  const totalSec = Math.round(ms / 1000)
+  const m = Math.floor(totalSec / 60)
+  const s = totalSec % 60
+  return `${m}:${String(s).padStart(2, '0')}`
+}
 
 // best-effort — if the player isn't signed in this 401s and we just don't
 // track it server-side; localStorage already recorded the solve either way
@@ -52,7 +66,27 @@ export interface TerminalLine {
   output: string[]
 }
 
+export interface ToastItem {
+  id: string
+  text: string
+  createdAt: number
+  tone?: 'default' | 'accent' | 'ok' | 'warn' | 'crit'
+  breakdown?: Array<{ label: string; value: number }>
+}
+
 const TUTORIAL_SEEN_KEY = 'sev0_tutorial_seen'
+const EDITOR_THEME_KEY = 'sev0_editor_theme'
+
+export type EditorTheme = 'light' | 'dark'
+
+function loadEditorTheme(): EditorTheme {
+  try {
+    const raw = localStorage.getItem(EDITOR_THEME_KEY)
+    return raw === 'light' ? 'light' : 'dark'
+  } catch {
+    return 'dark'
+  }
+}
 
 function hasSeenTutorial(): boolean {
   try {
@@ -177,6 +211,17 @@ function loadScenarioData(scenario: Scenario): ScenarioLoad {
   }
 }
 
+export interface LastResolution {
+  xp: number
+  streakCount: number
+  badges: BadgeId[]
+  levelBefore: string
+  levelAfter: string
+  leveledUp: boolean
+  newBest: boolean
+  resolutionMs: number
+}
+
 interface Sev0State {
   scenario: Scenario
   filesystem: FsFile[]
@@ -200,15 +245,22 @@ interface Sev0State {
   playing: boolean
   tutorialOpen: boolean
   commandPaletteOpen: boolean
-  toast?: string
+  toasts: ToastItem[]
+  celebratingBadges: BadgeId[]
+  solveCelebrationKey: number
+  lastResolution?: LastResolution
+  editorTheme: EditorTheme
 
   contextMenu?: ContextMenuState
 
   loadScenario: (scenario: Scenario) => void
+  restartIncident: () => void
+  setEditorTheme: (t: EditorTheme) => void
   setTutorialOpen: (v: boolean) => void
   setCommandPaletteOpen: (v: boolean) => void
-  showToast: (msg: string) => void
-  clearToast: () => void
+  showToast: (msg: string, tone?: ToastItem['tone']) => void
+  dismissToast: (id: string) => void
+  dismissCelebration: () => void
   openFile: (path: string) => void
   openIncident: () => void
   openDocs: () => void
@@ -279,8 +331,11 @@ export const useSev0Store = create<Sev0State>((set, get) => ({
   playing: false,
   tutorialOpen: !hasSeenTutorial() && !initialLoad.toast,
   commandPaletteOpen: false,
-  toast: initialLoad.toast,
+  toasts: initialLoad.toast ? [{ id: 'shared-solution', text: initialLoad.toast, createdAt: Date.now() }] : [],
+  celebratingBadges: [],
+  solveCelebrationKey: 0,
   contextMenu: undefined,
+  editorTheme: loadEditorTheme(),
 
   loadScenario: (scenario) => {
     saveCode(get().scenario, get().code)
@@ -306,7 +361,35 @@ export const useSev0Store = create<Sev0State>((set, get) => ({
       submitResult: undefined,
       scrubberT: 0,
       playing: false,
-      toast: loaded.toast,
+      toasts: loaded.toast ? [{ id: 'shared-solution', text: loaded.toast, createdAt: Date.now() }] : [],
+      celebratingBadges: [],
+      solveCelebrationKey: 0,
+      lastResolution: undefined,
+    })
+  },
+
+  restartIncident: () => {
+    const s = get()
+    try {
+      localStorage.removeItem(taskStartedKey(s.scenario))
+      localStorage.removeItem(codeStorageKey(s.scenario))
+      localStorage.removeItem(helpStorageKey(s.scenario))
+    } catch {
+      // ignore — private browsing / storage blocked
+    }
+    const loaded = loadScenarioData(s.scenario)
+    set({
+      code: loaded.code,
+      taskStartedAt: loaded.taskStartedAt,
+      hintsRevealed: loaded.helpProgress.hintsRevealed,
+      solutionRevealed: loaded.helpProgress.solutionRevealed,
+      lastRun: undefined,
+      submitResult: undefined,
+      scrubberT: 0,
+      playing: false,
+      terminals: {},
+      solved: isScenarioSolved(loaded.scenario),
+      toasts: [{ id: `restart-${Date.now()}`, text: 'Restarted — fresh code, fresh timer', createdAt: Date.now(), tone: 'ok' }],
     })
   },
 
@@ -315,8 +398,12 @@ export const useSev0Store = create<Sev0State>((set, get) => ({
     set({ tutorialOpen: v })
   },
   setCommandPaletteOpen: (v) => set({ commandPaletteOpen: v }),
-  showToast: (msg) => set({ toast: msg }),
-  clearToast: () => set({ toast: undefined }),
+  showToast: (msg, tone) =>
+    set((s) => ({
+      toasts: [...s.toasts, { id: `t-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, text: msg, createdAt: Date.now(), tone }],
+    })),
+  dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
+  dismissCelebration: () => set({ celebratingBadges: [] }),
 
   openFile: (path) =>
     set((s) => {
@@ -411,6 +498,7 @@ export const useSev0Store = create<Sev0State>((set, get) => ({
         s.scenario.domain === 'iot'
           ? await runIotScenario(s.scenario, iotCode(s), s.scenario.practiceSeed)
           : await runScenario(s.scenario, checkoutCode(s), s.scenario.practiceSeed)
+      recordPracticeRun(s.scenario)
       set((s2) => ({
         lastRun: result,
         scrubberT: 0,
@@ -429,14 +517,103 @@ export const useSev0Store = create<Sev0State>((set, get) => ({
       const result =
         s.scenario.domain === 'iot' ? await submitIotScenario(s.scenario, iotCode(s)) : await submitScenario(s.scenario, checkoutCode(s))
       if (result.passed) {
-        markScenarioSolved(s.scenario)
+        // reset timer + saved code for the next visit, but keep current in-memory
+        // state so the user can keep admiring the result panel until they navigate
+        try {
+          localStorage.removeItem(taskStartedKey(s.scenario))
+          localStorage.removeItem(codeStorageKey(s.scenario))
+          localStorage.removeItem(helpStorageKey(s.scenario))
+        } catch {
+          // ignore — private browsing / storage blocked
+        }
+        const resolutionMs = Date.now() - s.taskStartedAt
+        const priorProgress = loadProgress()
+        const isFirstSolve = !(s.scenario.caseId in priorProgress.solved)
+        const xpBreakdown = computeXp(s.scenario, resolutionMs, s.hintsRevealed, s.solutionRevealed, isFirstSolve)
+        const levelBeforeTitle = levelFor(priorProgress.totalXp).title
+        const { newBest } = saveSolve(s.scenario, {
+          resolutionMs,
+          hintsUsed: s.hintsRevealed,
+          solutionRevealed: s.solutionRevealed,
+          xp: xpBreakdown.total,
+        })
         reportSolveToServer(s.scenario, {
-          resolutionMs: Date.now() - s.taskStartedAt,
+          resolutionMs,
           hintsUsed: s.hintsRevealed,
           solutionRevealed: s.solutionRevealed,
         })
+        const streak = recordSolveOnDay()
+        const updatedProgress = loadProgress()
+        const solvedIds = Object.keys(updatedProgress.solved)
+        const earned = evaluateEarned({
+          caseId: s.scenario.caseId,
+          scenario: s.scenario,
+          resolutionMs,
+          hintsRevealed: s.hintsRevealed,
+          solutionRevealed: s.solutionRevealed,
+          solvedCaseIds: solvedIds,
+          streakCount: streak.count,
+        })
+        const newBadges = addBadges(earned)
+        const levelAfterTitle = levelFor(updatedProgress.totalXp).title
+        const questResult = checkQuestCompletion({
+          caseId: s.scenario.caseId,
+          difficulty: s.scenario.difficulty,
+          isReplay: !isFirstSolve,
+        })
+
+        const freshToasts: ToastItem[] = []
+        const xpBreakdownItems: Array<{ label: string; value: number }> = [
+          { label: 'Base', value: xpBreakdown.base },
+          ...(xpBreakdown.time > 0 ? [{ label: 'Speed', value: xpBreakdown.time }] : []),
+          ...(xpBreakdown.first > 0 ? [{ label: 'First solve', value: xpBreakdown.first }] : []),
+          ...(xpBreakdown.soln > 0 ? [{ label: 'No peeking', value: xpBreakdown.soln }] : []),
+          ...(xpBreakdown.hint < 0 ? [{ label: 'Hints', value: xpBreakdown.hint }] : []),
+        ]
+        freshToasts.push({
+          id: `xp-${Date.now()}`,
+          text: `+${xpBreakdown.total} XP earned`,
+          createdAt: Date.now(),
+          tone: 'accent',
+          breakdown: xpBreakdownItems,
+        })
+        if (newBest) {
+          freshToasts.push({ id: `best-${Date.now()}`, text: `New personal best: ${fmtDuration(resolutionMs)}`, createdAt: Date.now(), tone: 'ok' })
+        }
+        if (streak.count >= 2) {
+          freshToasts.push({ id: `streak-${Date.now()}`, text: `${streak.count}-day streak`, createdAt: Date.now(), tone: 'warn' })
+        }
+        for (const id of newBadges) {
+          freshToasts.push({ id: `badge-${id}-${Date.now()}`, text: `Badge earned: ${BADGE_BY_ID[id].label}`, createdAt: Date.now(), tone: 'ok' })
+        }
+        if (questResult.completed) {
+          freshToasts.push({
+            id: `quest-${Date.now()}`,
+            text: `Daily quest complete! +${questResult.bonus} XP`,
+            createdAt: Date.now(),
+            tone: 'ok',
+          })
+        }
+        set((cur) => ({
+          submitResult: result,
+          solved: true,
+          toasts: [...cur.toasts, ...freshToasts],
+          celebratingBadges: newBadges.length > 0 ? newBadges : cur.celebratingBadges,
+          solveCelebrationKey: cur.solveCelebrationKey + 1,
+          lastResolution: {
+            xp: xpBreakdown.total,
+            streakCount: streak.count,
+            badges: newBadges,
+            levelBefore: levelBeforeTitle,
+            levelAfter: levelAfterTitle,
+            leveledUp: levelBeforeTitle !== levelAfterTitle,
+            newBest,
+            resolutionMs,
+          },
+        }))
+      } else {
+        set({ submitResult: result, solved: s.solved || result.passed })
       }
-      set({ submitResult: result, solved: s.solved || result.passed })
     } finally {
       set({ isSubmitting: false })
     }
@@ -453,4 +630,13 @@ export const useSev0Store = create<Sev0State>((set, get) => ({
       terminals: { ...s.terminals, [nodeId]: [...(s.terminals[nodeId] ?? []), { cmd, output }] },
     })),
   clearTerminal: (nodeId) => set((s) => ({ terminals: { ...s.terminals, [nodeId]: [] } })),
+
+  setEditorTheme: (t) => {
+    try {
+      localStorage.setItem(EDITOR_THEME_KEY, t)
+    } catch {
+      // ignore
+    }
+    set({ editorTheme: t })
+  },
 }))

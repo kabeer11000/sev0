@@ -29,37 +29,42 @@ export function AuthModal({ onClose }: { onClose: () => void }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center px-4"
-      style={{ background: 'rgba(0,0,0,0.6)' }}
+      style={{ background: 'rgba(43, 36, 28, 0.35)' }}
       onClick={onClose}
     >
       <div
         role="dialog"
         aria-modal="true"
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-[360px] rounded-lg"
-        style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-strong)', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}
+        className="w-full max-w-[380px] rounded-3xl"
+        style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-modal)' }}
       >
-        <div className="flex items-center justify-between px-5 pt-5">
-          <span className="font-mono text-[13px] font-semibold" style={{ color: 'var(--fg)' }}>
+        <div className="flex items-center justify-between px-6 pt-6">
+          <span className="text-[16px] font-semibold" style={{ color: 'var(--fg)' }}>
             {mode === 'signup' ? 'Create an account' : 'Sign in'}
           </span>
-          <button onClick={onClose} aria-label="Close" className="font-mono text-[11px]" style={{ color: 'var(--fg-faint)' }}>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="rounded-full px-2.5 py-0.5 text-[11px] transition-colors hover:bg-[var(--surface-hover)]"
+            style={{ color: 'var(--fg-faint)' }}
+          >
             close
           </button>
         </div>
-        <p className="px-5 pb-1 pt-2 text-[12px] leading-relaxed" style={{ color: 'var(--fg-faint)' }}>
+        <p className="px-6 pb-1 pt-2 text-[13px] leading-relaxed" style={{ color: 'var(--fg-faint)' }}>
           Only used to save your resolved incidents to the leaderboard and sync progress. No verification email, nothing
           fancy.
         </p>
 
-        <form onSubmit={submit} className="flex flex-col gap-2.5 px-5 pb-5 pt-3">
+        <form onSubmit={submit} className="flex flex-col gap-3 px-6 pb-6 pt-4">
           {mode === 'signup' && (
             <input
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Display name"
-              className="h-9 rounded-md border px-3 font-mono text-[12.5px] outline-none"
+              className="h-10 rounded-full border px-4 text-[13.5px] outline-none transition-colors focus:border-[var(--accent)]"
               style={{ borderColor: 'var(--border-strong)', background: 'var(--surface)', color: 'var(--fg)' }}
             />
           )}
@@ -70,7 +75,7 @@ export function AuthModal({ onClose }: { onClose: () => void }) {
             onChange={(e) => setEmail(e.target.value)}
             placeholder="Email"
             autoComplete="email"
-            className="h-9 rounded-md border px-3 font-mono text-[12.5px] outline-none"
+            className="h-10 rounded-full border px-4 text-[13.5px] outline-none transition-colors focus:border-[var(--accent)]"
             style={{ borderColor: 'var(--border-strong)', background: 'var(--surface)', color: 'var(--fg)' }}
           />
           <input
@@ -81,12 +86,12 @@ export function AuthModal({ onClose }: { onClose: () => void }) {
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Password"
             autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-            className="h-9 rounded-md border px-3 font-mono text-[12.5px] outline-none"
+            className="h-10 rounded-full border px-4 text-[13.5px] outline-none transition-colors focus:border-[var(--accent)]"
             style={{ borderColor: 'var(--border-strong)', background: 'var(--surface)', color: 'var(--fg)' }}
           />
 
           {error && (
-            <div className="rounded-md px-3 py-2 font-mono text-[11.5px]" style={{ background: 'var(--crit-bg)', color: 'var(--crit)' }}>
+            <div className="rounded-2xl px-3 py-2 text-[12.5px]" style={{ background: 'var(--crit-bg)', color: 'var(--crit)' }}>
               {error}
             </div>
           )}
@@ -94,8 +99,11 @@ export function AuthModal({ onClose }: { onClose: () => void }) {
           <button
             type="submit"
             disabled={busy}
-            className="mt-1 h-9 rounded-md font-mono text-[12.5px] font-semibold text-black disabled:opacity-50"
-            style={{ background: '#fff' }}
+            className="mt-1 h-10 rounded-full text-[13.5px] font-bold text-white transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-50 disabled:hover:translate-y-0"
+            style={{
+              background: 'linear-gradient(180deg, #f37c5a 0%, var(--accent) 60%, var(--accent-strong) 100%)',
+              boxShadow: '0 3px 10px rgba(238, 90, 54, 0.28)',
+            }}
           >
             {busy ? 'Working…' : mode === 'signup' ? 'Create account' : 'Sign in'}
           </button>
@@ -106,8 +114,8 @@ export function AuthModal({ onClose }: { onClose: () => void }) {
               setMode(mode === 'signup' ? 'signin' : 'signup')
               setError(undefined)
             }}
-            className="font-mono text-[11.5px] hover:underline"
-            style={{ color: 'var(--accent)' }}
+            className="text-[12.5px] hover:underline"
+            style={{ color: 'var(--accent-strong)' }}
           >
             {mode === 'signup' ? 'Already have an account? Sign in' : "Don't have an account? Create one"}
           </button>

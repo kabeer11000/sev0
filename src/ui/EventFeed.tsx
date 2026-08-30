@@ -80,16 +80,23 @@ export function EventFeed() {
   if (!lastRun) return null
 
   return (
-    <div className="flex h-full flex-col overflow-y-auto font-mono text-[11px]">
+    <div className="flex h-full flex-col gap-1 overflow-y-auto px-2 py-2 font-mono text-[11.5px]">
       {rows.length === 0 && (
-        <div className="px-4 py-3" style={{ color: 'var(--fg-faint)' }}>
+        <div className="px-3 py-2" style={{ color: 'var(--fg-faint)' }}>
           No signals yet at this point in time.
         </div>
       )}
       {rows.map((e) => {
         const flagged = e.double || e.mismatch || e.outOfOrder
         const sev = flagged ? 'crit' : SEVERITY[e.kind] ?? 'ok'
-        const color = sev === 'crit' ? 'var(--crit)' : sev === 'warn' ? 'var(--warn)' : 'var(--fg-muted)'
+        const dotColor =
+          sev === 'crit' ? 'var(--crit)' : sev === 'warn' ? 'var(--warn)' : 'var(--ok)'
+        const rowBg =
+          flagged ? 'var(--crit-bg)' :
+          sev === 'warn' ? 'var(--warn-bg)' :
+          'transparent'
+        const textColor =
+          sev === 'crit' ? 'var(--crit)' : sev === 'warn' ? 'var(--warn-strong, var(--warn))' : 'var(--fg-muted)'
         const label = e.double
           ? 'ALERT  duplicate charge'
           : e.mismatch
@@ -99,19 +106,33 @@ export function EventFeed() {
               : LABELS[e.kind]
         const copyId = e.orderId ?? (e.kind.startsWith('line.') || e.kind.startsWith('packet.') || e.kind === 'device.restart' ? e.node : undefined)
         return (
-          <div key={`${e.seq}`} className="flex gap-3 border-b px-4 py-1.5" style={{ borderColor: 'var(--border)' }}>
-            <span className="shrink-0 tabular-nums" style={{ color: 'var(--fg-faint)' }}>
+          <div
+            key={`${e.seq}`}
+            className="flex items-center gap-2.5 rounded-lg px-3 py-1.5 transition-colors"
+            style={{ background: rowBg }}
+          >
+            <span
+              className="inline-block h-1.5 w-1.5 shrink-0 rounded-full"
+              style={{ background: dotColor }}
+              aria-hidden
+            />
+            <span
+              className="shrink-0 font-mono text-[10.5px] tabular-nums"
+              style={{ color: 'var(--fg-faint)' }}
+            >
               {(e.t / 1000).toFixed(1)}s
             </span>
-            <span style={{ color }}>{label}</span>
+            <span className="flex-1 truncate" style={{ color: textColor }}>
+              {label}
+            </span>
             {copyId && (
               <button
                 onClick={() => {
                   navigator.clipboard?.writeText(copyId)
                   showToast(`${copyId} copied — paste into any terminal's logs/peek/select`)
                 }}
-                className="hover:underline"
-                style={{ color: flagged ? color : 'var(--accent)' }}
+                className="rounded-md px-1.5 py-0.5 transition-colors hover:bg-[var(--surface-hover)]"
+                style={{ color: flagged ? textColor : 'var(--accent)' }}
                 title={`Copy ${copyId}`}
               >
                 {copyId}

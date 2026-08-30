@@ -1,6 +1,34 @@
 import type { RunResult, SubmitResult } from '../runner'
 import type { IotRunResult, IotSubmitResult } from '../iotRunner'
 
+export interface ResultCardMeta {
+  title: string
+  resolutionMs: number
+  budgetMs: number
+  xp: number
+  hintsUsed: number
+  solutionRevealed: boolean
+}
+
+function fmtDuration(ms: number): string {
+  const totalSec = Math.round(ms / 1000)
+  const m = Math.floor(totalSec / 60)
+  const s = totalSec % 60
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
+export function formatResultCard(meta: ResultCardMeta): string {
+  const lines: string[] = []
+  lines.push(`Sev0 — ${meta.title}`)
+  lines.push(`Time: ${fmtDuration(meta.resolutionMs)} (budget ${fmtDuration(meta.budgetMs)})`)
+  lines.push(`XP: +${meta.xp}`)
+  const flags: string[] = []
+  if (meta.hintsUsed === 0) flags.push('No hints')
+  if (!meta.solutionRevealed) flags.push('No peek')
+  if (flags.length > 0) lines.push(flags.join('. ') + '.')
+  return lines.join('\n')
+}
+
 export function formatResultSummary(
   caseId: string,
   lastRun: RunResult | IotRunResult | undefined,

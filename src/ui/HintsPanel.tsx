@@ -1,15 +1,37 @@
 import { useState } from 'react'
 import { useSev0Store } from '../store'
 
+const HINT_TIERS = [
+  { bg: 'var(--tier-tutorial)', fg: 'var(--tier-tutorial-fg)', label: 'Nudge' },
+  { bg: 'var(--tier-easy)', fg: 'var(--tier-easy-fg)', label: 'Hint' },
+  { bg: 'var(--tier-medium)', fg: 'var(--tier-medium-fg)', label: 'Closer' },
+  { bg: 'var(--tier-hard)', fg: 'var(--tier-hard-fg)', label: 'Almost there' },
+]
+
 function Hint({ index, text }: { index: number; text: string }) {
+  const tier = HINT_TIERS[index % HINT_TIERS.length] ?? HINT_TIERS[0]!
   return (
-    <div className="flex gap-3 rounded-md border p-3" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
-      <span className="shrink-0 font-mono text-[11px]" style={{ color: 'var(--fg-faint)' }}>
+    <div
+      className="pop-in flex gap-3 rounded-2xl border p-4"
+      style={{ borderColor: tier.fg, background: tier.bg }}
+    >
+      <span
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-mono text-[12px] font-bold"
+        style={{ background: 'rgba(255,255,255,0.85)', color: tier.fg }}
+      >
         {index + 1}
       </span>
-      <p className="text-[13px] leading-relaxed" style={{ color: 'var(--fg-muted)' }}>
-        {text}
-      </p>
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <span
+          className="text-[10px] font-bold uppercase"
+          style={{ color: tier.fg, letterSpacing: '0.10em' }}
+        >
+          {tier.label}
+        </span>
+        <p className="text-[13.5px] leading-relaxed" style={{ color: 'var(--fg)' }}>
+          {text}
+        </p>
+      </div>
     </div>
   )
 }
@@ -28,19 +50,16 @@ export function HintsPanel() {
   const allHintsShown = hintsRevealed >= scenario.hints.length
 
   return (
-    <div className="h-full overflow-y-auto px-6 py-6">
-      <div className="mb-1 font-mono text-[10px] uppercase tracking-wider" style={{ color: 'var(--fg-faint)' }}>
-        Stuck?
-      </div>
+    <div className="h-full overflow-y-auto px-7 py-7">
       <h1 className="mb-2 text-[19px] font-semibold" style={{ letterSpacing: '-0.01em' }}>
         Hints
       </h1>
-      <p className="mb-5 max-w-[62ch] text-[13px] leading-relaxed" style={{ color: 'var(--fg-muted)' }}>
-        Each hint narrows things down a bit more than the last. Revealing one doesn&rsquo;t cost you anything — it
-        just stays revealed if you come back to this incident later.
+      <p className="mb-5 max-w-[62ch] text-[13.5px] leading-relaxed" style={{ color: 'var(--fg-muted)' }}>
+        Each hint narrows things down a bit more than the last. Each hint you reveal is remembered — you won&rsquo;t
+        have to reveal it again if you come back.
       </p>
 
-      <div className="flex flex-col gap-2.5">
+      <div className="flex flex-col gap-3">
         {scenario.hints.slice(0, hintsRevealed).map((text, i) => (
           <Hint key={i} index={i} text={text} />
         ))}
@@ -49,10 +68,21 @@ export function HintsPanel() {
       {!allHintsShown && (
         <button
           onClick={() => revealNextHint()}
-          className="mt-3 rounded-md border px-3 py-2 font-mono text-[11.5px] hover:underline"
-          style={{ borderColor: 'var(--border-strong)', color: 'var(--accent)', background: 'var(--surface)' }}
+          className="mt-3 inline-flex items-center gap-2 rounded-full px-5 py-2 text-[13px] font-semibold transition-all duration-200 hover:-translate-y-px hover:shadow-md"
+          style={{
+            background: 'linear-gradient(180deg, var(--surface) 0%, var(--bg-elevated) 100%)',
+            color: 'var(--accent-strong)',
+            border: '1px solid var(--accent-dim)',
+          }}
         >
+          <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden>
+            <path d="M8 1.5 L 14 5 L 8 8.5 L 2 5 Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+            <path d="M2 11 L 8 14.5 L 14 11" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" opacity="0.5" />
+          </svg>
           Reveal hint {hintsRevealed + 1} of {scenario.hints.length}
+          <span className="rounded-full px-2 py-0.5 font-mono text-[10px] font-bold tabular-nums" style={{ background: 'var(--crit-bg)', color: 'var(--crit)' }}>
+            −50 XP
+          </span>
         </button>
       )}
 
@@ -60,33 +90,33 @@ export function HintsPanel() {
         <h2 className="mb-2 text-[15px] font-semibold">Solution</h2>
         {!solutionRevealed ? (
           <>
-            <p className="mb-3 max-w-[62ch] text-[13px] leading-relaxed" style={{ color: 'var(--fg-muted)' }}>
-              This shows the actual fix — the root cause and the corrected code for every editable file. It&rsquo;s
-              here so you're never stuck for good, not because you should reach for it first.
+            <p className="mb-3 max-w-[62ch] text-[13.5px] leading-relaxed" style={{ color: 'var(--fg-muted)' }}>
+              Here&rsquo;s what was actually wrong, plus the corrected code. Use it if you&rsquo;re truly stuck — and
+              the badges get less interesting if you do.
             </p>
             {!confirmingSolution ? (
               <button
                 onClick={() => setConfirmingSolution(true)}
-                className="rounded-md border px-3 py-2 font-mono text-[11.5px]"
+                className="rounded-full border px-5 py-2 text-[13px] font-medium"
                 style={{ borderColor: 'var(--border-strong)', color: 'var(--fg-muted)', background: 'var(--surface)' }}
               >
                 Show solution
               </button>
             ) : (
               <div className="flex items-center gap-2">
-                <span className="text-[12.5px]" style={{ color: 'var(--fg-muted)' }}>
+                <span className="text-[13px]" style={{ color: 'var(--fg-muted)' }}>
                   This spoils the incident. Show it?
                 </span>
                 <button
                   onClick={() => revealSolution()}
-                  className="rounded-md border px-2.5 py-1 font-mono text-[11px] font-semibold"
+                  className="rounded-full border px-4 py-1.5 text-[12.5px] font-semibold"
                   style={{ borderColor: 'var(--crit)', color: 'var(--crit)', background: 'var(--crit-bg)' }}
                 >
                   Yes, show it
                 </button>
                 <button
                   onClick={() => setConfirmingSolution(false)}
-                  className="rounded-md px-2.5 py-1 font-mono text-[11px]"
+                  className="rounded-full px-4 py-1.5 text-[12.5px]"
                   style={{ color: 'var(--fg-faint)' }}
                 >
                   Cancel
@@ -96,22 +126,22 @@ export function HintsPanel() {
           </>
         ) : (
           <>
-            <p className="mb-4 max-w-[68ch] text-[13px] leading-relaxed" style={{ color: 'var(--fg-muted)' }}>
+            <p className="mb-4 max-w-[68ch] text-[13.5px] leading-relaxed" style={{ color: 'var(--fg-muted)' }}>
               {scenario.solution.explanation}
             </p>
             <div className="flex flex-col gap-4">
               {scenario.solution.files.map((f) => {
                 const vfsPath = `services/${f.path}`
                 return (
-                  <div key={f.path} className="overflow-hidden rounded-md border" style={{ borderColor: 'var(--border)' }}>
+                  <div key={f.path} className="overflow-hidden rounded-2xl border" style={{ borderColor: 'var(--border)' }}>
                     <div
-                      className="flex items-center justify-between px-3 py-1.5 font-mono text-[11px]"
+                      className="flex items-center justify-between px-4 py-2 text-[12px]"
                       style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg-faint)' }}
                     >
-                      <span>{f.path}</span>
+                      <span className="font-mono">{f.path}</span>
                       <div className="flex items-center gap-3">
                         <button onClick={() => openFile(vfsPath)} className="hover:underline" style={{ color: 'var(--accent)' }}>
-                          open file
+                          Open file
                         </button>
                         <button
                           onClick={() => {
@@ -122,11 +152,11 @@ export function HintsPanel() {
                           className="hover:underline"
                           style={{ color: 'var(--accent)' }}
                         >
-                          use this fix
+                          Use this fix
                         </button>
                       </div>
                     </div>
-                    <pre className="overflow-x-auto p-3 font-mono text-[11.5px] leading-relaxed" style={{ color: 'var(--fg)' }}>
+                    <pre className="overflow-x-auto p-4 font-mono text-[12px] leading-relaxed" style={{ color: 'var(--fg)' }}>
                       {f.code}
                     </pre>
                   </div>

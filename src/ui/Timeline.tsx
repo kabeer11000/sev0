@@ -11,6 +11,32 @@ function fmt(ms: number): string {
     .padStart(2, '0')}s`
 }
 
+function PlayIcon() {
+  return (
+    <svg width="9" height="9" viewBox="0 0 9 9" aria-hidden>
+      <polygon points="0,0 9,4.5 0,9" fill="currentColor" />
+    </svg>
+  )
+}
+
+function PauseIcon() {
+  return (
+    <svg width="9" height="9" viewBox="0 0 9 9" aria-hidden>
+      <rect width="3" height="9" fill="currentColor" rx="0.5" />
+      <rect x="6" width="3" height="9" fill="currentColor" rx="0.5" />
+    </svg>
+  )
+}
+
+function ReplayIcon() {
+  return (
+    <svg width="9" height="9" viewBox="0 0 12 12" fill="none" aria-hidden>
+      <path d="M2 6 A4 4 0 1 0 4 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" />
+      <path d="M2 1 L2 4 L5 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </svg>
+  )
+}
+
 export function Timeline() {
   const lastRun = useSev0Store((s) => s.lastRun)
   const scrubberT = useSev0Store((s) => s.scrubberT)
@@ -54,12 +80,10 @@ export function Timeline() {
 
   const posRef = useRef(scrubberT)
   const [speed, setSpeed] = useState(1)
+  const pct = maxT > 0 ? scrubberT / maxT : 0
 
   useEffect(() => {
     if (!playing) return
-    // start from wherever the scrubber currently sits, then accumulate in a
-    // ref — reading `scrubberT` from the closure would replay the same stale
-    // value every frame instead of advancing
     posRef.current = scrubberT === maxT ? 0 : scrubberT
     lastFrameRef.current = performance.now()
     const step = (now: number) => {
@@ -81,77 +105,113 @@ export function Timeline() {
 
   if (!lastRun) {
     return (
-      <div className="flex h-full items-center px-4 text-xs" style={{ color: 'var(--fg-faint)' }}>
+      <div
+        className="flex h-full items-center justify-center gap-2 px-4 text-[12px]"
+        style={{ color: 'var(--fg-faint)' }}
+      >
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden>
+          <circle cx="3" cy="8" r="1.6" stroke="currentColor" strokeWidth="1.4" />
+          <circle cx="13" cy="8" r="1.6" stroke="currentColor" strokeWidth="1.4" />
+          <path d="M4.5 8 L11.5 8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+        </svg>
         Run the practice seed to scrub through the incident timeline.
       </div>
     )
   }
 
   return (
-    <div className="flex h-full flex-col justify-center gap-2 px-4">
-      <div className="flex items-center gap-3">
-        <button
-          onClick={() => setPlaying(!playing)}
-          className="flex h-6 w-6 shrink-0 items-center justify-center rounded"
-          style={{ background: 'var(--surface-hover)', border: '1px solid var(--border-strong)' }}
-          aria-label={playing ? 'Pause' : 'Play'}
-        >
-          {playing ? (
-            <svg width="9" height="9" viewBox="0 0 9 9"><rect width="3" height="9" fill="currentColor" /><rect x="6" width="3" height="9" fill="currentColor" /></svg>
-          ) : (
-            <svg width="9" height="9" viewBox="0 0 9 9"><polygon points="0,0 9,4.5 0,9" fill="currentColor" /></svg>
-          )}
-        </button>
-        <button
-          onClick={() => setSpeed(SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length])}
-          title="Playback speed"
-          className="flex h-6 w-9 shrink-0 items-center justify-center rounded font-mono text-[10.5px] tabular-nums"
-          style={{ background: 'var(--surface-hover)', border: '1px solid var(--border-strong)', color: 'var(--fg-muted)' }}
-        >
-          {speed}×
-        </button>
-        <div className="relative flex-1">
-          <div className="relative h-6">
+    <div className="flex h-full items-center gap-3 px-4">
+      <button
+        onClick={() => {
+          if (scrubberT >= maxT) setScrubberT(0)
+          setPlaying(!playing)
+        }}
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white transition-all duration-200 hover:-translate-y-px hover:shadow-md active:translate-y-0"
+        style={{
+          background: 'linear-gradient(135deg, var(--accent-dim) 0%, var(--accent) 100%)',
+          boxShadow: playing ? '0 4px 12px rgba(238, 90, 54, 0.32)' : '0 2px 6px rgba(238, 90, 54, 0.18)',
+        }}
+        aria-label={playing ? 'Pause' : scrubberT >= maxT ? 'Replay' : 'Play'}
+        title={playing ? 'Pause' : scrubberT >= maxT ? 'Replay' : 'Play'}
+      >
+        {playing ? <PauseIcon /> : scrubberT >= maxT ? <ReplayIcon /> : <PlayIcon />}
+      </button>
+
+      <button
+        onClick={() => setSpeed(SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length])}
+        title="Playback speed"
+        className="flex h-8 w-10 shrink-0 items-center justify-center rounded-full font-mono text-[10.5px] font-semibold tabular-nums transition-all duration-200 hover:-translate-y-px"
+        style={{
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          color: 'var(--fg-muted)',
+        }}
+      >
+        {speed}×
+      </button>
+
+      <div className="relative flex-1">
+        <div className="relative h-8">
+          {/* track */}
+          <div
+            className="absolute top-1/2 h-1.5 w-full -translate-y-1/2 rounded-full"
+            style={{ background: 'var(--border)' }}
+          />
+          {/* filled */}
+          <div
+            className="absolute top-1/2 h-1.5 -translate-y-1/2 rounded-full transition-[width] duration-100"
+            style={{
+              background: 'linear-gradient(90deg, var(--accent) 0%, var(--accent-vivid) 100%)',
+              width: `${pct * 100}%`,
+            }}
+          />
+          {/* markers */}
+          {markers.map((m, i) => (
             <div
-              className="absolute top-1/2 h-[3px] w-full -translate-y-1/2 rounded-full"
-              style={{ background: 'var(--border)' }}
-            />
-            <div
-              className="absolute top-1/2 h-[3px] -translate-y-1/2 rounded-full"
-              style={{ background: 'var(--accent)', width: `${(scrubberT / maxT) * 100}%` }}
-            />
-            {markers.map((m, i) => (
-              <div
-                key={i}
-                title={`${fmt(m.t)} — ${m.label}`}
-                className="absolute top-1/2 h-2 w-[2px] -translate-y-1/2 -translate-x-1/2"
-                style={{
-                  left: `${(m.t / maxT) * 100}%`,
-                  background: m.kind === 'crit' ? 'var(--crit)' : m.kind === 'warn' ? 'var(--warn)' : 'var(--ok)',
-                }}
-              />
-            ))}
-            <input
-              type="range"
-              min={0}
-              max={maxT}
-              step={1}
-              value={scrubberT}
-              onChange={(e) => {
-                setPlaying(false)
-                setScrubberT(Number(e.target.value))
+              key={i}
+              title={`${fmt(m.t)} — ${m.label}`}
+              className="absolute top-1/2 h-2.5 w-1 -translate-y-1/2 -translate-x-1/2 rounded-sm"
+              style={{
+                left: `${(m.t / maxT) * 100}%`,
+                background: m.kind === 'crit' ? 'var(--crit)' : m.kind === 'warn' ? 'var(--warn)' : 'var(--ok)',
+                boxShadow: '0 0 0 1.5px var(--bg-elevated)',
               }}
-              className="absolute inset-0 w-full cursor-pointer opacity-0"
             />
-            <div
-              className="pointer-events-none absolute top-1/2 h-3 w-3 -translate-y-1/2 -translate-x-1/2 rounded-full"
-              style={{ left: `${(scrubberT / maxT) * 100}%`, background: 'var(--accent)', boxShadow: '0 0 0 3px rgba(255,92,51,0.22)' }}
-            />
-          </div>
+          ))}
+          {/* invisible range input for click/drag */}
+          <input
+            type="range"
+            min={0}
+            max={maxT}
+            step={1}
+            value={scrubberT}
+            onChange={(e) => {
+              setPlaying(false)
+              setScrubberT(Number(e.target.value))
+            }}
+            className="absolute inset-0 w-full cursor-pointer opacity-0"
+          />
+          {/* playhead */}
+          <div
+            className="pointer-events-none absolute top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full"
+            style={{
+              left: `${pct * 100}%`,
+              width: 14,
+              height: 14,
+              background: 'var(--accent)',
+              boxShadow: '0 0 0 3px var(--bg-elevated), 0 0 0 5px rgba(238, 90, 54, 0.30), 0 2px 6px rgba(238, 90, 54, 0.30)',
+              transition: playing ? 'none' : 'left 80ms ease',
+            }}
+          />
         </div>
-        <div className="w-32 shrink-0 text-right font-mono text-[11px] tabular-nums" style={{ color: 'var(--fg-muted)' }}>
-          {fmt(scrubberT)} / {fmt(maxT)}
-        </div>
+      </div>
+
+      <div
+        className="w-32 shrink-0 text-right font-mono text-[11.5px] tabular-nums"
+        style={{ color: 'var(--fg-muted)' }}
+      >
+        <span style={{ color: 'var(--fg)' }}>{fmt(scrubberT)}</span>
+        <span style={{ color: 'var(--fg-faint)' }}> / {fmt(maxT)}</span>
       </div>
     </div>
   )

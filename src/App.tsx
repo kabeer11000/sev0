@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import { useSev0Store } from './store'
 import type { Scenario } from './scenario/types'
@@ -20,37 +20,112 @@ import { TutorialModal } from './ui/TutorialModal'
 import { ContextMenu } from './ui/ContextMenu'
 import { CommandPalette } from './ui/CommandPalette'
 import { Toast } from './ui/Toast'
+import { Confetti } from './ui/Confetti'
+import { BadgeCelebrationModal } from './ui/BadgeCelebrationModal'
+import { XpCoinFloater } from './ui/XpCoinFloater'
 import { IncidentListPage } from './ui/IncidentListPage'
 import { LeaderboardPage } from './ui/LeaderboardPage'
 import { NotFoundPage } from './ui/NotFoundPage'
 
 function ResizeHandle({ direction }: { direction: 'horizontal' | 'vertical' }) {
+  const isH = direction === 'horizontal'
   return (
     <PanelResizeHandle
       className="group relative shrink-0"
-      style={direction === 'horizontal' ? { width: 9, cursor: 'col-resize' } : { height: 9, cursor: 'row-resize' }}
+      style={isH ? { width: 10, cursor: 'col-resize' } : { height: 10, cursor: 'row-resize' }}
     >
       <div
         className="absolute transition-colors group-hover:bg-[var(--accent)] group-data-[resize-handle-active]:bg-[var(--accent)]"
         style={
-          direction === 'horizontal'
-            ? { left: 4, top: 0, bottom: 0, width: 1, background: 'var(--border)' }
-            : { top: 4, left: 0, right: 0, height: 1, background: 'var(--border)' }
+          isH
+            ? { left: 4, top: 0, bottom: 0, width: 2, background: 'var(--border)' }
+            : { top: 4, left: 0, right: 0, height: 2, background: 'var(--border)' }
         }
       />
+      {/* grip dots — visible on hover, oriented to direction */}
+      <div
+        className="absolute flex items-center justify-center gap-0.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-data-[resize-handle-active]:opacity-100"
+        style={
+          isH
+            ? { left: 1, top: '50%', transform: 'translateY(-50%)', flexDirection: 'column' }
+            : { top: 1, left: '50%', transform: 'translateX(-50%)', flexDirection: 'row' }
+        }
+      >
+        <span className="h-0.5 w-0.5 rounded-full" style={{ background: 'var(--accent)' }} />
+        <span className="h-0.5 w-0.5 rounded-full" style={{ background: 'var(--accent)' }} />
+        <span className="h-0.5 w-0.5 rounded-full" style={{ background: 'var(--accent)' }} />
+      </div>
     </PanelResizeHandle>
   )
 }
 
-function PanelLabel({ children }: { children: React.ReactNode }) {
+function PanelLabel({
+  children,
+  icon,
+  accent,
+}: {
+  children: React.ReactNode
+  icon?: React.ReactNode
+  accent?: boolean
+}) {
   return (
     <div
-      className="flex h-8 shrink-0 items-center border-b px-3 font-mono text-[10px] uppercase tracking-wider"
-      style={{ borderColor: 'var(--border)', color: 'var(--fg-faint)' }}
+      className="flex h-9 shrink-0 items-center gap-1.5 border-b px-4 text-[12px] font-semibold"
+      style={{
+        borderColor: 'var(--border)',
+        color: accent ? 'var(--accent-strong)' : 'var(--fg-muted)',
+        background: 'transparent',
+      }}
     >
+      {icon}
       {children}
     </div>
   )
+}
+
+function PanelIcon({ kind }: { kind: 'topology' | 'files' | 'verdict' | 'timeline' | 'events' }) {
+  const stroke = 'currentColor'
+  switch (kind) {
+    case 'topology':
+      return (
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden>
+          <circle cx="3" cy="3" r="1.8" stroke={stroke} strokeWidth="1.4" />
+          <circle cx="13" cy="4" r="1.8" stroke={stroke} strokeWidth="1.4" />
+          <circle cx="8" cy="13" r="1.8" stroke={stroke} strokeWidth="1.4" />
+          <path d="M4.5 4 L11.5 4.5 M4 4.5 L7.5 11.5 M11 5.5 L9 11.5" stroke={stroke} strokeWidth="1.2" strokeLinecap="round" opacity="0.6" />
+        </svg>
+      )
+    case 'files':
+      return (
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden>
+          <path d="M3 2 H9 L13 6 V14 H3 Z" stroke={stroke} strokeWidth="1.4" strokeLinejoin="round" />
+          <path d="M9 2 V6 H13" stroke={stroke} strokeWidth="1.4" strokeLinejoin="round" opacity="0.6" />
+        </svg>
+      )
+    case 'verdict':
+      return (
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden>
+          <circle cx="8" cy="8" r="6" stroke={stroke} strokeWidth="1.4" />
+          <path d="M5 8.5 L7 10.5 L11 6" stroke={stroke} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )
+    case 'timeline':
+      return (
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden>
+          <circle cx="3" cy="8" r="1.6" stroke={stroke} strokeWidth="1.4" />
+          <circle cx="13" cy="8" r="1.6" stroke={stroke} strokeWidth="1.4" />
+          <path d="M4.5 8 L11.5 8" stroke={stroke} strokeWidth="1.4" strokeLinecap="round" />
+        </svg>
+      )
+    case 'events':
+      return (
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden>
+          <rect x="2.5" y="3" width="11" height="2" rx="0.6" stroke={stroke} strokeWidth="1.2" />
+          <rect x="2.5" y="7" width="11" height="2" rx="0.6" stroke={stroke} strokeWidth="1.2" />
+          <rect x="2.5" y="11" width="11" height="2" rx="0.6" stroke={stroke} strokeWidth="1.2" />
+        </svg>
+      )
+  }
 }
 
 function CloseIcon() {
@@ -84,30 +159,54 @@ function CenterTabBar() {
   }
 
   return (
-    <div className="flex h-9 shrink-0 items-stretch overflow-x-auto overflow-y-hidden border-b" style={{ borderColor: 'var(--border)' }}>
-      {tabs.map((t) => (
-        <div
-          key={t.id}
-          className="group relative flex shrink-0 items-center gap-2 border-r px-3 font-mono text-[11.5px]"
-          style={{ borderColor: 'var(--border)', color: activeId === t.id ? 'var(--fg)' : 'var(--fg-faint)' }}
-        >
-          <button onClick={() => setActive(t.id)} className="flex h-9 items-center gap-1.5">
-            {labelFor(t.id)}
-            {isDirty(t.id) && <span className="h-1.5 w-1.5 rounded-full" style={{ background: 'var(--accent)' }} />}
-          </button>
-          {t.id !== 'incident' && t.id !== 'docs' && t.id !== 'hints' && (
+    <div
+      className="flex h-10 shrink-0 items-end gap-1 overflow-x-auto overflow-y-hidden px-2"
+      style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}
+    >
+      {tabs.map((t) => {
+        const active = activeId === t.id
+        const dirty = isDirty(t.id)
+        return (
+          <div
+            key={t.id}
+            className="group relative flex h-8 shrink-0 items-center gap-1.5 self-end rounded-t-xl px-3.5 text-[12.5px] transition-all duration-200"
+            style={{
+              background: active ? 'var(--bg-elevated)' : 'transparent',
+              color: active ? 'var(--fg)' : 'var(--fg-faint)',
+              boxShadow: active ? '0 -2px 8px rgba(43, 36, 28, 0.06)' : 'none',
+              border: active ? '1px solid var(--border)' : '1px solid transparent',
+              borderBottom: active ? '1px solid var(--bg-elevated)' : '1px solid transparent',
+              marginBottom: '-1px',
+            }}
+          >
             <button
-              onClick={() => closeTab(t.id)}
-              className="rounded p-0.5 opacity-0 group-hover:opacity-100"
-              style={{ color: 'var(--fg-faint)' }}
-              aria-label="Close tab"
+              onClick={() => setActive(t.id)}
+              className="flex h-full items-center gap-2 font-medium transition-colors group-hover:text-[var(--fg-muted)]"
+              style={{ color: 'inherit' }}
             >
-              <CloseIcon />
+              {labelFor(t.id)}
+              {dirty && (
+                <span
+                  className="dirty-pulse relative flex h-2 w-2"
+                  title="Unsaved changes"
+                >
+                  <span className="absolute inset-0 rounded-full" style={{ background: 'var(--accent)' }} />
+                </span>
+              )}
             </button>
-          )}
-          {activeId === t.id && <span className="absolute inset-x-0 bottom-0 h-[2px]" style={{ background: 'var(--accent)' }} />}
-        </div>
-      ))}
+            {t.id !== 'incident' && t.id !== 'docs' && t.id !== 'hints' && (
+              <button
+                onClick={() => closeTab(t.id)}
+                className="flex h-4 w-4 items-center justify-center rounded-md opacity-0 transition-all duration-150 hover:bg-[var(--surface-hover)] group-hover:opacity-100"
+                style={{ color: 'var(--fg-faint)' }}
+                aria-label="Close tab"
+              >
+                <CloseIcon />
+              </button>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -119,29 +218,45 @@ function BottomTabBar() {
   const closeTab = useSev0Store((s) => s.closeBottomTab)
 
   return (
-    <div className="flex h-8 shrink-0 items-stretch overflow-x-auto overflow-y-hidden border-b" style={{ borderColor: 'var(--border)' }}>
-      {tabs.map((t) => (
-        <div
-          key={t.id}
-          className="group relative flex shrink-0 items-center gap-2 border-r px-3 font-mono text-[11px]"
-          style={{ borderColor: 'var(--border)', color: activeId === t.id ? 'var(--fg)' : 'var(--fg-faint)' }}
-        >
-          <button onClick={() => setActive(t.id)} className="flex h-8 items-center">
-            {t.kind === 'feed' ? 'Feed' : t.nodeId}
-          </button>
-          {t.id !== 'feed' && (
+    <div
+      className="flex h-10 shrink-0 items-end gap-1 overflow-x-auto overflow-y-hidden px-2"
+      style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}
+    >
+      {tabs.map((t) => {
+        const active = activeId === t.id
+        return (
+          <div
+            key={t.id}
+            className="group relative flex h-8 shrink-0 items-center gap-2 self-end rounded-t-xl px-3.5 text-[12.5px] transition-all duration-200"
+            style={{
+              background: active ? 'var(--bg-elevated)' : 'transparent',
+              color: active ? 'var(--fg)' : 'var(--fg-faint)',
+              boxShadow: active ? '0 -2px 8px rgba(43, 36, 28, 0.06)' : 'none',
+              border: active ? '1px solid var(--border)' : '1px solid transparent',
+              borderBottom: active ? '1px solid var(--bg-elevated)' : '1px solid transparent',
+              marginBottom: '-1px',
+            }}
+          >
             <button
-              onClick={() => closeTab(t.id)}
-              className="rounded p-0.5 opacity-0 group-hover:opacity-100"
-              style={{ color: 'var(--fg-faint)' }}
-              aria-label="Close tab"
+              onClick={() => setActive(t.id)}
+              className="flex h-full items-center gap-1.5 font-medium transition-colors group-hover:text-[var(--fg-muted)]"
+              style={{ color: 'inherit' }}
             >
-              <CloseIcon />
+              {t.kind === 'feed' ? 'Event feed' : t.nodeId}
             </button>
-          )}
-          {activeId === t.id && <span className="absolute inset-x-0 bottom-0 h-[2px]" style={{ background: 'var(--accent)' }} />}
-        </div>
-      ))}
+            {t.id !== 'feed' && (
+              <button
+                onClick={() => closeTab(t.id)}
+                className="flex h-4 w-4 items-center justify-center rounded-md opacity-0 transition-all duration-150 hover:bg-[var(--surface-hover)] group-hover:opacity-100"
+                style={{ color: 'var(--fg-faint)' }}
+                aria-label="Close tab"
+              >
+                <CloseIcon />
+              </button>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -158,6 +273,15 @@ function IncidentApp({ scenario }: { scenario: Scenario }) {
   const setCommandPaletteOpen = useSev0Store((s) => s.setCommandPaletteOpen)
   const runPractice = useSev0Store((s) => s.runPractice)
   const submit = useSev0Store((s) => s.submit)
+  const celebratingBadges = useSev0Store((s) => s.celebratingBadges)
+  const dismissCelebration = useSev0Store((s) => s.dismissCelebration)
+  const solveCelebrationKey = useSev0Store((s) => s.solveCelebrationKey)
+  const lastResolution = useSev0Store((s) => s.lastResolution)
+  const [confettiKey, setConfettiKey] = useState(0)
+
+  useEffect(() => {
+    if (solveCelebrationKey > 0) setConfettiKey((k) => k + 1)
+  }, [solveCelebrationKey])
 
   useEffect(() => {
     if (storeScenario.caseId !== scenario.caseId) loadScenario(scenario)
@@ -186,6 +310,11 @@ function IncidentApp({ scenario }: { scenario: Scenario }) {
       <CommandPalette />
       <Toast />
       <ContextMenu />
+      {confettiKey > 0 && <Confetti key={confettiKey} />}
+      <XpCoinFloater trigger={solveCelebrationKey} amount={lastResolution?.xp ?? 0} />
+      {celebratingBadges.length > 0 && (
+        <BadgeCelebrationModal badges={celebratingBadges} onClose={dismissCelebration} />
+      )}
       <Header />
 
       <PanelGroup direction="vertical" className="min-h-0 flex-1">
@@ -195,7 +324,7 @@ function IncidentApp({ scenario }: { scenario: Scenario }) {
               <PanelGroup direction="vertical" className="h-full border-r" style={{ borderColor: 'var(--border)' }}>
                 <Panel defaultSize={65} minSize={25}>
                   <div className="flex h-full flex-col">
-                    <PanelLabel>Topology</PanelLabel>
+                    <PanelLabel icon={<PanelIcon kind="topology" />}>Topology</PanelLabel>
                     <div className="min-h-0 flex-1">
                       <TopologyGraph scenario={storeScenario} log={lastRun?.log} t={scrubberT} />
                     </div>
@@ -205,7 +334,7 @@ function IncidentApp({ scenario }: { scenario: Scenario }) {
                 <ResizeHandle direction="vertical" />
                 <Panel defaultSize={35} minSize={15}>
                   <div className="flex h-full flex-col">
-                    <PanelLabel>Files</PanelLabel>
+                    <PanelLabel icon={<PanelIcon kind="files" />}>Files</PanelLabel>
                     <div className="min-h-0 flex-1">
                       <FileTree />
                     </div>
@@ -237,7 +366,7 @@ function IncidentApp({ scenario }: { scenario: Scenario }) {
 
             <Panel defaultSize={25} minSize={16} maxSize={40}>
               <aside className="flex h-full flex-col">
-                <PanelLabel>Verdict</PanelLabel>
+                <PanelLabel icon={<PanelIcon kind="verdict" />} accent>Verdict</PanelLabel>
                 <div className="min-h-0 flex-1">
                   <VerdictPanel />
                 </div>
