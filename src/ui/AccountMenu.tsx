@@ -12,8 +12,6 @@ export function AccountMenu() {
   const setTutorialOpen = useSev0Store((s) => s.setTutorialOpen)
   const setCommandPaletteOpen = useSev0Store((s) => s.setCommandPaletteOpen)
   const restartIncident = useSev0Store((s) => s.restartIncident)
-  const editorTheme = useSev0Store((s) => s.editorTheme)
-  const setEditorTheme = useSev0Store((s) => s.setEditorTheme)
 
   if (isPending) return <span className="h-8 w-16" />
 
@@ -88,16 +86,6 @@ export function AccountMenu() {
               Leaderboard
             </button>
             <div className="my-1 mx-2 border-t" style={{ borderColor: 'var(--border)' }} />
-            <button
-              onClick={() => {
-                setMenuOpen(false)
-                setEditorTheme(editorTheme === 'light' ? 'dark' : 'light')
-              }}
-              className="mx-1 rounded-xl px-3 py-2 text-left text-[13px] transition-colors hover:bg-[var(--surface-hover)]"
-              style={{ color: 'var(--fg-muted)' }}
-            >
-              {editorTheme === 'light' ? 'Dark editor' : 'Light editor'}
-            </button>
             <button
               onClick={() => {
                 setMenuOpen(false)

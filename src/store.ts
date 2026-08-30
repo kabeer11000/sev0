@@ -75,18 +75,6 @@ export interface ToastItem {
 }
 
 const TUTORIAL_SEEN_KEY = 'sev0_tutorial_seen'
-const EDITOR_THEME_KEY = 'sev0_editor_theme'
-
-export type EditorTheme = 'light' | 'dark'
-
-function loadEditorTheme(): EditorTheme {
-  try {
-    const raw = localStorage.getItem(EDITOR_THEME_KEY)
-    return raw === 'light' ? 'light' : 'dark'
-  } catch {
-    return 'dark'
-  }
-}
 
 function hasSeenTutorial(): boolean {
   try {
@@ -249,13 +237,11 @@ interface Sev0State {
   celebratingBadges: BadgeId[]
   solveCelebrationKey: number
   lastResolution?: LastResolution
-  editorTheme: EditorTheme
 
   contextMenu?: ContextMenuState
 
   loadScenario: (scenario: Scenario) => void
   restartIncident: () => void
-  setEditorTheme: (t: EditorTheme) => void
   setTutorialOpen: (v: boolean) => void
   setCommandPaletteOpen: (v: boolean) => void
   showToast: (msg: string, tone?: ToastItem['tone']) => void
@@ -335,7 +321,6 @@ export const useSev0Store = create<Sev0State>((set, get) => ({
   celebratingBadges: [],
   solveCelebrationKey: 0,
   contextMenu: undefined,
-  editorTheme: loadEditorTheme(),
 
   loadScenario: (scenario) => {
     saveCode(get().scenario, get().code)
@@ -630,13 +615,4 @@ export const useSev0Store = create<Sev0State>((set, get) => ({
       terminals: { ...s.terminals, [nodeId]: [...(s.terminals[nodeId] ?? []), { cmd, output }] },
     })),
   clearTerminal: (nodeId) => set((s) => ({ terminals: { ...s.terminals, [nodeId]: [] } })),
-
-  setEditorTheme: (t) => {
-    try {
-      localStorage.setItem(EDITOR_THEME_KEY, t)
-    } catch {
-      // ignore
-    }
-    set({ editorTheme: t })
-  },
 }))

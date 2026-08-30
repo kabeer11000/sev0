@@ -77,8 +77,6 @@ export function Header() {
   const setCommandPaletteOpen = useSev0Store((s) => s.setCommandPaletteOpen)
   const openContextMenu = useSev0Store((s) => s.openContextMenu)
   const showToast = useSev0Store((s) => s.showToast)
-  const editorTheme = useSev0Store((s) => s.editorTheme)
-  const setEditorTheme = useSev0Store((s) => s.setEditorTheme)
 
   const [runCount, setRunCount] = useState(() => getPracticeRunCount(scenario))
   useEffect(() => {
@@ -162,37 +160,6 @@ export function Header() {
             <circle cx="7" cy="7" r="4.5" stroke="currentColor" strokeWidth="1.6" />
             <path d="M10.5 10.5 L14 14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
           </svg>
-        </button>
-        <button
-          onClick={() => setEditorTheme(editorTheme === 'light' ? 'dark' : 'light')}
-          aria-label={editorTheme === 'light' ? 'Switch editor to dark theme' : 'Switch editor to light theme'}
-          title={editorTheme === 'light' ? 'Dark editor' : 'Light editor'}
-          className="flex h-8 w-8 items-center justify-center rounded-full transition-all duration-200 hover:-translate-y-px hover:shadow-sm"
-          style={{
-            border: '1px solid var(--border)',
-            color: 'var(--fg-muted)',
-            background: editorTheme === 'light' ? 'var(--accent-dim)' : 'var(--surface)',
-          }}
-        >
-          {editorTheme === 'light' ? (
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
-              <path d="M11.5 9.5 A 5.5 5.5 0 0 1 6.5 4.5 A 5.5 5.5 0 1 0 11.5 9.5 Z" fill="currentColor" />
-            </svg>
-          ) : (
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
-              <circle cx="8" cy="8" r="3" fill="currentColor" />
-              <g stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-                <path d="M8 1.5 V 3.2" />
-                <path d="M8 12.8 V 14.5" />
-                <path d="M1.5 8 H 3.2" />
-                <path d="M12.8 8 H 14.5" />
-                <path d="M3.4 3.4 L 4.6 4.6" />
-                <path d="M11.4 11.4 L 12.6 12.6" />
-                <path d="M3.4 12.6 L 4.6 11.4" />
-                <path d="M11.4 4.6 L 12.6 3.4" />
-              </g>
-            </svg>
-          )}
         </button>
         <button
           onClick={openShareMenu}

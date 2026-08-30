@@ -66,7 +66,6 @@ export function FileViewer({ path }: { path: string }) {
   const scenario = useSev0Store((s) => s.scenario)
   const openTerminal = useSev0Store((s) => s.openTerminal)
   const openDocs = useSev0Store((s) => s.openDocs)
-  const editorTheme = useSev0Store((s) => s.editorTheme)
 
   useEffect(() => {
     ensureMonacoSdkTypes()
@@ -128,7 +127,7 @@ export function FileViewer({ path }: { path: string }) {
         <Editor
           height="100%"
           language={file.language}
-          theme={editorTheme === 'light' ? 'sev0-light' : 'vs-dark'}
+          theme="sev0-light"
           value={file.editable ? code : file.content}
           onChange={file.editable ? (v) => setCode(path, v ?? '') : undefined}
           options={{
