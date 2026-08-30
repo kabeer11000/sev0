@@ -3,6 +3,7 @@ import { navigate } from '../router'
 import { Logo } from './Logo'
 import { DIFFICULTY_LABEL, DIFFICULTY_COLOR } from './difficulty'
 import { isScenarioSolved, rankFor } from '../progress'
+import { AccountMenu } from './AccountMenu'
 
 const SEVERITY_COLOR: Record<string, string> = {
   SEV0: 'var(--crit)',
@@ -80,8 +81,14 @@ export function IncidentListPage() {
   return (
     <div className="flex h-full flex-col items-center overflow-y-auto" style={{ background: 'var(--bg)' }}>
       <div className="w-full max-w-[720px] px-6 py-14">
-        <div className="mb-6">
+        <div className="mb-6 flex items-center justify-between">
           <Logo />
+          <div className="flex items-center gap-3">
+            <button onClick={() => navigate('/leaderboard')} className="font-mono text-[11px] hover:underline" style={{ color: 'var(--fg-faint)' }}>
+              leaderboard
+            </button>
+            <AccountMenu />
+          </div>
         </div>
 
         <h1 className="mb-1.5 text-[24px] font-semibold" style={{ letterSpacing: '-0.01em' }}>

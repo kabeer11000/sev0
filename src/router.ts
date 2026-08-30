@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 
-export type Route = { type: 'list' } | { type: 'incident'; caseId: string }
+export type Route = { type: 'list' } | { type: 'incident'; caseId: string } | { type: 'leaderboard' }
 
 export function parseRoute(pathname: string): Route {
   const m = pathname.match(/^\/incident\/([^/]+)\/?$/)
   if (m) return { type: 'incident', caseId: decodeURIComponent(m[1]) }
+  if (/^\/leaderboard\/?$/.test(pathname)) return { type: 'leaderboard' }
   return { type: 'list' }
 }
 

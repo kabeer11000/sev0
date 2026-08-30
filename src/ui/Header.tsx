@@ -3,6 +3,7 @@ import { buildShareUrl, formatResultSummary, downloadTextFile } from './shareUti
 import { navigate } from '../router'
 import { Logo } from './Logo'
 import { ElapsedTimer } from './ElapsedTimer'
+import { AccountMenu } from './AccountMenu'
 
 function Kbd({ children }: { children: React.ReactNode }) {
   return (
@@ -140,6 +141,8 @@ export function Header() {
           {isSubmitting ? 'Grading…' : 'Submit'}
           {!isSubmitting && <Kbd>⇧⌘⏎</Kbd>}
         </button>
+        <span className="mx-0.5 h-3.5 w-px" style={{ background: 'var(--border-strong)' }} />
+        <AccountMenu />
       </div>
     </header>
   )

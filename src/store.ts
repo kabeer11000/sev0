@@ -12,6 +12,16 @@ import { readSharedSolutionFromHash, clearShareHash } from './ui/shareUtils'
 import { parseRoute } from './router'
 import { isScenarioSolved, markScenarioSolved } from './progress'
 
+// best-effort — if the player isn't signed in this 401s and we just don't
+// track it server-side; localStorage already recorded the solve either way
+function reportSolveToServer(scenario: Scenario, body: { resolutionMs: number; hintsUsed: number; solutionRevealed: boolean }) {
+  fetch('/api/progress', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ caseId: scenario.caseId, ...body }),
+  }).catch(() => {})
+}
+
 function lastEditableVfsPath(scenario: Scenario): string {
   return `services/${scenario.editableFiles[scenario.editableFiles.length - 1].path}`
 }
@@ -418,7 +428,14 @@ export const useSev0Store = create<Sev0State>((set, get) => ({
     try {
       const result =
         s.scenario.domain === 'iot' ? await submitIotScenario(s.scenario, iotCode(s)) : await submitScenario(s.scenario, checkoutCode(s))
-      if (result.passed) markScenarioSolved(s.scenario)
+      if (result.passed) {
+        markScenarioSolved(s.scenario)
+        reportSolveToServer(s.scenario, {
+          resolutionMs: Date.now() - s.taskStartedAt,
+          hintsUsed: s.hintsRevealed,
+          solutionRevealed: s.solutionRevealed,
+        })
+      }
       set({ submitResult: result, solved: s.solved || result.passed })
     } finally {
       set({ isSubmitting: false })

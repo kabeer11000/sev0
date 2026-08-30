@@ -21,6 +21,7 @@ import { ContextMenu } from './ui/ContextMenu'
 import { CommandPalette } from './ui/CommandPalette'
 import { Toast } from './ui/Toast'
 import { IncidentListPage } from './ui/IncidentListPage'
+import { LeaderboardPage } from './ui/LeaderboardPage'
 import { NotFoundPage } from './ui/NotFoundPage'
 
 function ResizeHandle({ direction }: { direction: 'horizontal' | 'vertical' }) {
@@ -271,6 +272,7 @@ export default function AppRoot() {
   const route = useRoute()
 
   if (route.type === 'list') return <IncidentListPage />
+  if (route.type === 'leaderboard') return <LeaderboardPage />
 
   const scenario = getScenarioByCaseId(route.caseId)
   if (!scenario) return <NotFoundPage caseId={route.caseId} />
