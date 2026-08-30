@@ -11,7 +11,7 @@ export function AccountMenu() {
 
   if (isPending) return <span className="h-6 w-14" />
 
-  if (!data) {
+  if (!data?.user) {
     return (
       <>
         <button
